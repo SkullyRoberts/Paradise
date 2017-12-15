@@ -78,7 +78,7 @@
 /obj/item/scooter_frame
 	name = "scooter frame"
 	desc = "A metal frame for building a scooter. Looks like you'll need to add some metal to make wheels."
-	icon = 'icons/obj/vehicles.dmi'
+	icon = 'icons/vehicles/scooter.dmi'
 	icon_state = "scooter_frame"
 	w_class = 3
 
