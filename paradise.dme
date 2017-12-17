@@ -2180,6 +2180,7 @@
 #include "code\modules\vehicle\atv.dm"
 #include "code\modules\vehicle\janicart.dm"
 #include "code\modules\vehicle\motorcycle.dm"
+#include "code\modules\vehicle\scooter.dm"
 #include "code\modules\vehicle\secway.dm"
 #include "code\modules\vehicle\snowmobile.dm"
 #include "code\modules\vehicle\speedbike.dm"
