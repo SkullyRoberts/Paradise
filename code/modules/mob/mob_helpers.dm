@@ -45,6 +45,12 @@
 			return 1
 	return 0
 
+/proc/isempshielded(A) //Checks to see if the person contains an empshield implant, then checks that the implant is actually inside of them
+	for(var/obj/item/weapon/implant/empshield/L in A)
+		if(L && L.implanted)
+			return 1
+	return 0
+
 /proc/ismindslave(A) //Checks to see if the person contains a mindslave implant, then checks that the implant is actually inside of them
 	for(var/obj/item/weapon/implant/traitor/T in A)
 		if(T && T.implanted)

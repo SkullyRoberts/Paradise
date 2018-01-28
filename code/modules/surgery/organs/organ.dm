@@ -258,19 +258,35 @@
 	if(tough)
 		switch(severity)
 			if(1)
-				receive_damage(0, 5.5)
-				if(owner)
-					owner.Stun(10)
+				if(isempshielded(owner))
+					receive_damage(0,2)
+					if(owner)
+						owner.stun(4)
+				else
+					receive_damage(0, 5.5)
+					if(owner)
+						owner.Stun(10)
 			if(2)
-				receive_damage(0, 2.8)
-				if(owner)
-					owner.Stun(5)
+				if(isempshielded(owner))
+					receive_damage(0,1)
+					if(owner)
+						owner.stun(2)
+				else
+					receive_damage(0, 2.8)
+					if(owner)
+						owner.Stun(5)
 	else
 		switch(severity)
 			if(1)
-				receive_damage(0, 20)
+				if(isempshielded(owner))
+					receive_damage(0,7)
+				else
+					receive_damage(0, 20)
 			if(2)
-				receive_damage(0, 7)
+				if(isempshielded(owner))
+					receive_damage(0,3)
+				else
+					receive_damage(0, 7)
 
 /obj/item/organ/internal/emp_act(severity)
 	if(!robotic || emp_proof)
@@ -278,9 +294,15 @@
 	if(robotic == 2)
 		switch(severity)
 			if(1.0)
-				receive_damage(20, 1)
+				if(isempshielded(owner))
+					receive_damage(10,0.5)
+				else
+					receive_damage(20, 1)
 			if(2.0)
-				receive_damage(7, 1)
+				if(isempshielded(owner))
+					receive_damage(3, 0.5)
+				else
+					receive_damage(7, 1)
 	else if(robotic == 1)
 		receive_damage(11, 1)
 
@@ -288,8 +310,11 @@
 	if(emp_proof)
 		return
 	if(owner && robotic == 2)
-		Stop() // In the name of looooove~!
-		owner.visible_message("<span class='danger'>[owner] clutches their chest and gasps!</span>","<span class='userdanger'>You clutch your chest in pain!</span>")
+		if(isempshielded(owner))
+			return
+		else
+			Stop() // In the name of looooove~!
+			owner.visible_message("<span class='danger'>[owner] clutches their chest and gasps!</span>","<span class='userdanger'>You clutch your chest in pain!</span>")
 	else if(owner && robotic == 1)
 		receive_damage(11,1)
 
