@@ -5,19 +5,20 @@
 	icon_state = "pdapainter"
 	density = 1
 	anchored = 1
-	var/obj/item/device/pda/storedpda = null
+	max_integrity = 200
+	var/obj/item/pda/storedpda = null
 	var/list/colorlist = list()
 
 
 /obj/machinery/pdapainter/update_icon()
-	overlays.Cut()
+	cut_overlays()
 
 	if(stat & BROKEN)
 		icon_state = "[initial(icon_state)]-broken"
 		return
 
 	if(storedpda)
-		overlays += "[initial(icon_state)]-closed"
+		add_overlay("[initial(icon_state)]-closed")
 
 	if(powered())
 		icon_state = initial(icon_state)
@@ -28,11 +29,11 @@
 
 /obj/machinery/pdapainter/New()
 	..()
-	var/blocked = list(/obj/item/device/pda/silicon/ai, /obj/item/device/pda/silicon/robot, /obj/item/device/pda/silicon/pai, /obj/item/device/pda/heads,
-						/obj/item/device/pda/clear, /obj/item/device/pda/syndicate)
+	var/blocked = list(/obj/item/pda/silicon/ai, /obj/item/pda/silicon/robot, /obj/item/pda/silicon/pai, /obj/item/pda/heads,
+						/obj/item/pda/clear, /obj/item/pda/syndicate)
 
-	for(var/P in typesof(/obj/item/device/pda)-blocked)
-		var/obj/item/device/pda/D = new P
+	for(var/P in typesof(/obj/item/pda)-blocked)
+		var/obj/item/pda/D = new P
 
 		//D.name = "PDA Style [colorlist.len+1]" //Gotta set the name, otherwise it all comes up as "PDA"
 		D.name = D.icon_state //PDAs don't have unique names, but using the sprite names works.
@@ -43,20 +44,63 @@
 	QDEL_NULL(storedpda)
 	return ..()
 
-/obj/machinery/pdapainter/attackby(var/obj/item/O as obj, var/mob/user as mob, params)
-	if(istype(O, /obj/item/device/pda))
+/obj/machinery/pdapainter/on_deconstruction()
+	if(storedpda)
+		storedpda.forceMove(loc)
+		storedpda = null
+
+/obj/machinery/pdapainter/ex_act(severity)
+	if(storedpda)
+		storedpda.ex_act(severity)
+	..()
+
+/obj/machinery/pdapainter/handle_atom_del(atom/A)
+	if(A == storedpda)
+		storedpda = null
+		update_icon()
+
+/obj/machinery/pdapainter/attackby(obj/item/I, mob/user, params)
+	if(default_unfasten_wrench(user, I))
+		power_change()
+		return
+	if(istype(I, /obj/item/pda))
 		if(storedpda)
 			to_chat(user, "There is already a PDA inside.")
 			return
 		else
-			var/obj/item/device/pda/P = usr.get_active_hand()
+			var/obj/item/pda/P = user.get_active_hand()
 			if(istype(P))
-				user.drop_item()
-				storedpda = P
-				P.loc = src
-				P.add_fingerprint(usr)
-				update_icon()
+				if(user.drop_item())
+					storedpda = P
+					P.forceMove(src)
+					P.add_fingerprint(user)
+					update_icon()
+	else if(iswelder(I) && user.a_intent != INTENT_HARM)
+		var/obj/item/weldingtool/WT = I
+		if(stat & BROKEN)
+			if(WT.remove_fuel(0,user))
+				user.visible_message("[user] is repairing [src].", \
+								"<span class='notice'>You begin repairing [src]...</span>", \
+								"<span class='italics'>You hear welding.</span>")
+				playsound(loc, WT.usesound, 40, 1)
+				if(do_after(user,40*WT.toolspeed, 1, target = src))
+					if(!WT.isOn() || !(stat & BROKEN))
+						return
+					to_chat(user, "<span class='notice'>You repair [src].</span>")
+					playsound(loc, 'sound/items/welder2.ogg', 50, 1)
+					stat &= ~BROKEN
+					obj_integrity = max_integrity
+					update_icon()
+		else
+			to_chat(user, "<span class='notice'>[src] does not need repairs.</span>")
+	else
+		return ..()
 
+/obj/machinery/pdapainter/deconstruct(disassembled = TRUE)
+	if(!(flags & NODECONSTRUCT))
+		if(!(stat & BROKEN))
+			stat |= BROKEN
+			update_icon()
 
 /obj/machinery/pdapainter/attack_hand(mob/user as mob)
 	if(..())
@@ -65,7 +109,7 @@
 	src.add_fingerprint(user)
 
 	if(storedpda)
-		var/obj/item/device/pda/P
+		var/obj/item/pda/P
 		P = input(user, "Select your color!", "PDA Painting") as null|anything in colorlist
 		if(!P)
 			return

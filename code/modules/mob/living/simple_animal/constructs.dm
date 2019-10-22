@@ -18,37 +18,37 @@
 	minbodytemp = 0
 	faction = list("cult")
 	flying = 1
+	pressure_resistance = 100
 	universal_speak = 1
 	AIStatus = AI_OFF //normal constructs don't have AI
 	var/const_type = "shade"
 	var/list/construct_spells = list()
 	var/playstyle_string = "<b>You are a generic construct! Your job is to not exist, and you should probably adminhelp this.</b>"
-	loot = list(/obj/item/weapon/reagent_containers/food/snacks/ectoplasm)
+	loot = list(/obj/item/reagent_containers/food/snacks/ectoplasm)
 	del_on_death = 1
 	deathmessage = "collapses in a shattered heap."
 
 /mob/living/simple_animal/hostile/construct/New()
-	..()
-	if(!ticker.mode)//work around for maps with runes and cultdat is not loaded all the way
+	. = ..()
+	if(!SSticker.mode)//work around for maps with runes and cultdat is not loaded all the way
 		name = "[const_type] ([rand(1, 1000)])"
 		real_name = const_type
 		icon_living = const_type
 		icon_state = const_type
 	else
-		name = "[ticker.mode.cultdat.get_name(const_type)] ([rand(1, 1000)])"
-		real_name = ticker.mode.cultdat.get_name(const_type)
-		icon_living = ticker.mode.cultdat.get_icon(const_type)
-		icon_state = ticker.mode.cultdat.get_icon(const_type)
+		name = "[SSticker.cultdat.get_name(const_type)] ([rand(1, 1000)])"
+		real_name = SSticker.cultdat.get_name(const_type)
+		icon_living = SSticker.cultdat.get_icon(const_type)
+		icon_state = SSticker.cultdat.get_icon(const_type)
 
 	for(var/spell in construct_spells)
 		AddSpell(new spell(null))
 
-	if(ticker.mode.cultdat.theme == "blood")
+	if(SSticker.cultdat?.theme == "blood")
 		updateglow()
 
 /mob/living/simple_animal/hostile/construct/examine(mob/user)
-	to_chat(user, "<span class='info'>*---------*</span>")
-	..(user)
+	. = ..()
 
 	var/msg = ""
 	if(src.health < src.maxHealth)
@@ -60,14 +60,14 @@
 		msg += "</span>"
 	msg += "*---------*</span>"
 
-	to_chat(user, msg)
+	. += msg
 
 /mob/living/simple_animal/hostile/construct/attack_animal(mob/living/simple_animal/M)
 	if(istype(M, /mob/living/simple_animal/hostile/construct/builder))
 		if(health < maxHealth)
 			adjustBruteLoss(-5)
 			if(src != M)
-				Beam(M,icon_state="sendbeam",icon='icons/effects/effects.dmi',time=4)
+				Beam(M,icon_state="sendbeam",time=4)
 				M.visible_message("<span class='danger'>[M] repairs some of \the <b>[src]'s</b> dents.</span>", \
 						   "<span class='cult'>You repair some of <b>[src]'s</b> dents, leaving <b>[src]</b> at <b>[health]/[maxHealth]</b> health.</span>")
 			else
@@ -79,11 +79,14 @@
 			else
 				to_chat(M, "<span class='cult'>You cannot repair your own dents, as you have none!</span>")
 	else if(src != M)
-		..()
+		return ..()
 
 
 /mob/living/simple_animal/hostile/construct/narsie_act()
 	return
+
+/mob/living/simple_animal/hostile/construct/electrocute_act(shock_damage, obj/source, siemens_coeff = 1, safety = FALSE, override = FALSE, tesla_shock = FALSE, illusion = FALSE, stun = TRUE)
+	return FALSE
 
 /////////////////Juggernaut///////////////
 
@@ -100,6 +103,7 @@
 	health = 250
 	response_harm   = "harmlessly punches"
 	harm_intent_damage = 0
+	obj_damage = 90
 	melee_damage_lower = 30
 	melee_damage_upper = 30
 	attacktext = "smashes their armoured gauntlet into"
@@ -109,7 +113,7 @@
 	status_flags = 0
 	const_type = "juggernaut"
 	mob_size = MOB_SIZE_LARGE
-	construct_spells = list(/obj/effect/proc_holder/spell/aoe_turf/conjure/lesserforcewall)
+	construct_spells = list(/obj/effect/proc_holder/spell/targeted/night_vision, /obj/effect/proc_holder/spell/aoe_turf/conjure/lesserforcewall)
 	force_threshold = 11
 	playstyle_string = "<b>You are a Juggernaut. Though slow, your shell can withstand extreme punishment, \
 						create shield walls, rip apart enemies and walls alike, and even deflect energy weapons.</b>"
@@ -164,10 +168,10 @@
 	melee_damage_lower = 25
 	melee_damage_upper = 25
 	attacktext = "slashes"
-	see_in_dark = 7
+	see_in_dark = 8
 	attack_sound = 'sound/weapons/bladeslice.ogg'
 	const_type = "wraith"
-	construct_spells = list(/obj/effect/proc_holder/spell/targeted/ethereal_jaunt/shift)
+	construct_spells = list(/obj/effect/proc_holder/spell/targeted/night_vision, /obj/effect/proc_holder/spell/targeted/ethereal_jaunt/shift)
 	retreat_distance = 2 //AI wraiths will move in and out of combat
 	playstyle_string = "<b>You are a Wraith. Though relatively fragile, you are fast, deadly, and even able to phase through walls.</b>"
 
@@ -181,7 +185,7 @@
 /mob/living/simple_animal/hostile/construct/builder
 	name = "Artificer"
 	real_name = "Artificer"
-	desc = "A bulbous construct dedicated to building and maintaining The Cult of Nar-Sie's armies"
+	desc = "A bulbous construct dedicated to building and maintaining Cult armies."
 	icon = 'icons/mob/mob.dmi'
 	icon_state = "artificer"
 	icon_living = "artificer"
@@ -189,6 +193,7 @@
 	health = 50
 	response_harm = "viciously beats"
 	harm_intent_damage = 5
+	obj_damage = 60
 	melee_damage_lower = 5
 	melee_damage_upper = 5
 	attacktext = "rams"
@@ -197,7 +202,8 @@
 	minimum_distance = 10 //AI artificers will flee like fuck
 	attack_sound = 'sound/weapons/punch2.ogg'
 	const_type = "builder"
-	construct_spells = list(/obj/effect/proc_holder/spell/aoe_turf/conjure/construct/lesser,
+	construct_spells = list(/obj/effect/proc_holder/spell/targeted/night_vision,
+							/obj/effect/proc_holder/spell/aoe_turf/conjure/construct/lesser,
 							/obj/effect/proc_holder/spell/aoe_turf/conjure/wall,
 							/obj/effect/proc_holder/spell/aoe_turf/conjure/floor,
 							/obj/effect/proc_holder/spell/aoe_turf/conjure/pylon,
@@ -211,7 +217,7 @@
 
 
 /mob/living/simple_animal/hostile/construct/builder/Found(atom/A) //what have we found here?
-	if(istype(A, /mob/living/simple_animal/hostile/construct)) //is it a construct?
+	if(isconstruct(A)) //is it a construct?
 		var/mob/living/simple_animal/hostile/construct/C = A
 		if(C.health < C.maxHealth) //is it hurt? let's go heal it if it is
 			return 1
@@ -230,7 +236,7 @@
 	..()
 	if(isliving(target))
 		var/mob/living/L = target
-		if(istype(L, /mob/living/simple_animal/hostile/construct) && L.health >= L.maxHealth) //is this target an unhurt construct? stop trying to heal it
+		if(isconstruct(L) && L.health >= L.maxHealth) //is this target an unhurt construct? stop trying to heal it
 			LoseTarget()
 			return 0
 		if(L.health <= melee_damage_lower+melee_damage_upper) //ey bucko you're hurt as fuck let's go hit you
@@ -239,7 +245,7 @@
 
 /mob/living/simple_animal/hostile/construct/builder/Aggro()
 	..()
-	if(istype(target, /mob/living/simple_animal/hostile/construct)) //oh the target is a construct no need to flee
+	if(isconstruct(target)) //oh the target is a construct no need to flee
 		retreat_distance = null
 		minimum_distance = 1
 
@@ -250,7 +256,7 @@
 
 /mob/living/simple_animal/hostile/construct/builder/hostile //actually hostile, will move around, hit things, heal other constructs
 	AIStatus = AI_ON
-	environment_smash = 1 //only token destruction, don't smash the cult wall NO STOP
+	environment_smash = ENVIRONMENT_SMASH_STRUCTURES //only token destruction, don't smash the cult wall NO STOP
 
 
 /////////////////////////////Behemoth/////////////////////////
@@ -283,7 +289,7 @@
 	AIStatus = AI_ON
 	environment_smash = 1 //only token destruction, don't smash the cult wall NO STOP
 
-/mob/living/simple_animal/hostile/construct/behemoth/Life()
+/mob/living/simple_animal/hostile/construct/behemoth/Life(seconds, times_fired)
 	weakened = 0
 	return ..()
 
@@ -302,11 +308,12 @@
 	melee_damage_lower = 1
 	melee_damage_upper = 5
 	attacktext = "prods"
-	environment_smash = 3
+	environment_smash = ENVIRONMENT_SMASH_RWALLS
 	see_in_dark = 8
 	attack_sound = 'sound/weapons/tap.ogg'
 	const_type = "harvester"
-	construct_spells = list(/obj/effect/proc_holder/spell/aoe_turf/conjure/wall,
+	construct_spells = list(/obj/effect/proc_holder/spell/targeted/night_vision,
+							/obj/effect/proc_holder/spell/aoe_turf/conjure/wall,
 							/obj/effect/proc_holder/spell/aoe_turf/conjure/floor,
 							/obj/effect/proc_holder/spell/targeted/smoke/disable)
 	retreat_distance = 2 //AI harvesters will move in and out of combat, like wraiths, but shittier

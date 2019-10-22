@@ -8,7 +8,6 @@
 	layer = MASSIVE_OBJ_LAYER
 	light_range = 6
 	appearance_flags = 0
-	unacidable = 1 //Don't comment this out.
 	var/current_size = 1
 	var/allowed_size = 1
 	var/contained = 1 //Are we going to move around?
@@ -19,6 +18,7 @@
 	var/dissipate_strength = 1 //How much energy do we lose?
 	var/move_self = 1 //Do we move on our own?
 	var/grav_pull = 4 //How many tiles out do we pull?
+	move_resist = INFINITY	//no, you don't get to push the singulo. Not even you OP wizard gateway statues
 	var/consume_range = 0 //How many tiles out do we eat
 	var/event_chance = 15 //Prob for event each tick
 	var/target = null //its target. moves towards the target if it has one
@@ -26,7 +26,7 @@
 	var/last_warning
 	var/consumedSupermatter = 0 //If the singularity has eaten a supermatter shard and can go to stage six
 	allow_spin = 0
-	burn_state = LAVA_PROOF
+	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF | FREEZE_PROOF
 
 /obj/singularity/New(loc, var/starting_energy = 50, var/temp = 0)
 	//CARN: admin-alert for chuckle-fuckery.
@@ -34,18 +34,18 @@
 
 	src.energy = starting_energy
 	..()
-	processing_objects.Add(src)
-	poi_list |= src
-	singularities += src
-	for(var/obj/machinery/power/singularity_beacon/singubeacon in machines)
+	START_PROCESSING(SSobj, src)
+	GLOB.poi_list |= src
+	GLOB.singularities += src
+	for(var/obj/machinery/power/singularity_beacon/singubeacon in GLOB.machines)
 		if(singubeacon.active)
 			target = singubeacon
 			break
 
 /obj/singularity/Destroy()
-	processing_objects.Remove(src)
-	poi_list.Remove(src)
-	singularities -= src
+	STOP_PROCESSING(SSobj, src)
+	GLOB.poi_list.Remove(src)
+	GLOB.singularities -= src
 	target = null
 	return ..()
 
@@ -68,14 +68,14 @@
 /obj/singularity/attack_animal(mob/user)
 	consume(user)
 
-/obj/singularity/attackby(obj/item/weapon/W, mob/user, params)
+/obj/singularity/attackby(obj/item/W, mob/user, params)
 	consume(user)
 	return 1
 
 /obj/singularity/Process_Spacemove() //The singularity stops drifting for no man!
 	return 0
 
-/obj/singularity/blob_act(severity)
+/obj/singularity/blob_act(obj/structure/blob/B)
 	return
 
 /obj/singularity/ex_act(severity)
@@ -95,6 +95,7 @@
 
 
 /obj/singularity/bullet_act(obj/item/projectile/P)
+	qdel(P)
 	return 0 //Will there be an impact? Who knows.  Will we see it? No.
 
 
@@ -274,7 +275,7 @@
 		desc = "[initial(desc)] It glows fiercely with inner fire."
 		name = "supermatter-charged [initial(name)]"
 		consumedSupermatter = 1
-		light_range = 10
+		set_light(10)
 	return
 
 

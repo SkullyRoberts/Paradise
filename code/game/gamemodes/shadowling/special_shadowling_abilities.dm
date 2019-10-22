@@ -9,6 +9,7 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 	range = -1
 	include_user = 1
 	action_icon_state = "hatch"
+	var/cycles_unused = 0
 
 /obj/effect/proc_holder/spell/targeted/shadowling_hatch/cast(list/targets, mob/user = usr)
 	if(user.stat || !ishuman(user) || !user || !is_shadow(user || isinspace(user)))
@@ -42,7 +43,7 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				var/temp_flags = H.status_flags
 				H.status_flags |= GODMODE //Can't die while hatching
 
-				H.visible_message("<span class='warning'>A chrysalis forms around [H], sealing them inside.</span>", \
+				H.visible_message("<span class='warning'>A chrysalis forms around [H], sealing [H.p_them()] inside.</span>", \
 									"<span class='shadowling'>You create your chrysalis and begin to contort within.</span>")
 
 				sleep(100)
@@ -50,7 +51,7 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 									"<span class='shadowling'>Spines pierce your back. Your claws break apart your fingers. You feel excruciating pain as your true form begins its exit.</span>")
 
 				sleep(90)
-				H.visible_message("<span class='warning'><b>[H], skin shifting, begins tearing at the walls around them.</b></span>", \
+				H.visible_message("<span class='warning'><b>[H], skin shifting, begins tearing at the walls around [H.p_them()].</b></span>", \
 								"<span class='shadowling'>Your false skin slips away. You begin tearing at the fragile membrane protecting you.</span>")
 
 				sleep(80)
@@ -83,6 +84,7 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				H.socks = "None"
 				H.faction |= "faithless"
 
+				H.set_species(/datum/species/shadow/ling)	//can't be a shadowling without being a shadowling
 				H.equip_to_slot_or_del(new /obj/item/clothing/under/shadowling(user), slot_w_uniform)
 				H.equip_to_slot_or_del(new /obj/item/clothing/shoes/shadowling(user), slot_shoes)
 				H.equip_to_slot_or_del(new /obj/item/clothing/suit/space/shadowling(user), slot_wear_suit)
@@ -90,7 +92,6 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				H.equip_to_slot_or_del(new /obj/item/clothing/gloves/shadowling(user), slot_gloves)
 				H.equip_to_slot_or_del(new /obj/item/clothing/mask/gas/shadowling(user), slot_wear_mask)
 				H.equip_to_slot_or_del(new /obj/item/clothing/glasses/shadowling(user), slot_glasses)
-				H.set_species("Shadowling")	//can't be a shadowling without being a shadowling
 
 				H.mind.RemoveSpell(src)
 
@@ -106,6 +107,10 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				H.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/collective_mind(null))
 				H.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/shadowling_regenarmor(null))
 				H.mind.AddSpell(new /obj/effect/proc_holder/spell/targeted/shadowling_extend_shuttle(null))
+
+				QDEL_NULL(H.hud_used)
+				H.hud_used = new /datum/hud/human(H, ui_style2icon(H.client.prefs.UI_style), H.client.prefs.UI_style_color, H.client.prefs.UI_style_alpha)
+				H.hud_used.show_hud(H.hud_used.hud_version)
 
 /obj/effect/proc_holder/spell/targeted/shadowling_ascend
 	name = "Ascend"
@@ -156,7 +161,7 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				for(var/mob/living/M in orange(7, H))
 					M.Weaken(10)
 					to_chat(M, "<span class='userdanger'>An immense pressure slams you onto the ground!</span>")
-				for(var/obj/machinery/power/apc/A in apcs)
+				for(var/obj/machinery/power/apc/A in GLOB.apcs)
 					A.overload_lighting()
 				var/mob/living/simple_animal/ascendant_shadowling/A = new /mob/living/simple_animal/ascendant_shadowling(H.loc)
 				A.announce("VYSHA NERADA YEKHEZET U'RUU!!", 5, 'sound/hallucinations/veryfar_noise.ogg')
@@ -176,8 +181,9 @@ var/list/possibleShadowlingNames = list("U'ruan", "Y`shej", "Nex", "Hel-uae", "N
 				H.invisibility = 60 //This is pretty bad, but is also necessary for the shuttle call to function properly
 				H.loc = A
 				sleep(50)
-				if(!ticker.mode.shadowling_ascended)
-					shuttle_master.emergency.request(null, 0.3)
-				ticker.mode.shadowling_ascended = 1
+				if(!SSticker.mode.shadowling_ascended)
+					SSshuttle.emergency.request(null, 0.3)
+					SSshuttle.emergency.canRecall = FALSE
+				SSticker.mode.shadowling_ascended = 1
 				A.mind.RemoveSpell(src)
 				qdel(H)

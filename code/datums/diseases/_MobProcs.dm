@@ -9,21 +9,21 @@
 
 /mob/proc/CanContractDisease(datum/disease/D)
 	if(stat == DEAD)
-		return 0
+		return FALSE
 
 	if(D.GetDiseaseID() in resistances)
-		return 0
+		return FALSE
 
 	if(HasDisease(D))
-		return 0
+		return FALSE
 
-	if(count_by_type(viruses, /datum/disease/advance) >= 3)
-		return 0
+	if(istype(D, /datum/disease/advance) && count_by_type(viruses, /datum/disease/advance) > 0)
+		return FALSE
 
 	if(!(type in D.viable_mobtypes))
 		return -1 //for stupid fucking monkies
 
-	return 1
+	return TRUE
 
 
 /mob/proc/ContractDisease(datum/disease/D)
@@ -36,7 +36,7 @@
 	var/datum/disease/DD = new D.type(1, D, 0)
 	viruses += DD
 	DD.affected_mob = src
-	active_diseases += DD //Add it to the active diseases list, now that it's actually in a mob and being processed.
+	GLOB.active_diseases += DD //Add it to the active diseases list, now that it's actually in a mob and being processed.
 
 	//Copy properties over. This is so edited diseases persist.
 	var/list/skipped = list("affected_mob","holder","carrier","stage","type","parent_type","vars","transformed")
@@ -88,7 +88,7 @@
 
 		switch(target_zone)
 			if(1)
-				if(isobj(H.head) && !istype(H.head, /obj/item/weapon/paper))
+				if(isobj(H.head) && !istype(H.head, /obj/item/paper))
 					Cl = H.head
 					passed = prob((Cl.permeability_coefficient*100) - 1)
 				if(passed && isobj(H.wear_mask))
@@ -134,7 +134,7 @@
 
 
 /mob/living/carbon/human/CanContractDisease(datum/disease/D)
-	if((VIRUSIMMUNE in species.species_traits) && !D.bypasses_immunity)
+	if((VIRUSIMMUNE in dna.species.species_traits) && !D.bypasses_immunity)
 		return 0
 	for(var/thing in D.required_organs)
 		if(!((locate(thing) in bodyparts) || (locate(thing) in internal_organs)))

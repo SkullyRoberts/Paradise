@@ -20,7 +20,7 @@
 	action_icon_state = "skeleton"
 
 /obj/effect/proc_holder/spell/targeted/lichdom/Destroy()
-	for(var/datum/mind/M in ticker.mode.wizards) //Make sure no other bones are about
+	for(var/datum/mind/M in SSticker.mode.wizards) //Make sure no other bones are about
 		for(var/obj/effect/proc_holder/spell/S in M.spell_list)
 			if(istype(S,/obj/effect/proc_holder/spell/targeted/lichdom) && S != src)
 				return ..()
@@ -28,7 +28,7 @@
 		config.continuous_rounds = 0
 	return ..()
 
-/obj/effect/proc_holder/spell/targeted/lichdom/cast(list/targets,mob/user = usr)	
+/obj/effect/proc_holder/spell/targeted/lichdom/cast(list/targets,mob/user = usr)
 	if(!config.continuous_rounds)
 		existence_stops_round_end = 1
 		config.continuous_rounds = 1
@@ -49,7 +49,7 @@
 				charge_counter = charge_max
 				return
 
-			if(!marked_item || qdeleted(marked_item)) //Wait nevermind
+			if(!marked_item || QDELETED(marked_item)) //Wait nevermind
 				to_chat(M, "<span class='warning'>Your phylactery is gone!</span>")
 				return
 
@@ -68,7 +68,7 @@
 
 			lich.real_name = M.mind.name
 			M.mind.transfer_to(lich)
-			lich.set_species("Skeleton")
+			lich.set_species(/datum/species/skeleton)
 			to_chat(lich, "<span class='warning'>Your bones clatter and shutter as they're pulled back into this world!</span>")
 			charge_max += 600
 			var/mob/old_body = current_body
@@ -122,7 +122,7 @@
 				current_body = M.mind.current
 				if(ishuman(M))
 					var/mob/living/carbon/human/H = M
-					H.set_species("Skeleton")
+					H.set_species(/datum/species/skeleton)
 					H.unEquip(H.wear_suit)
 					H.unEquip(H.head)
 					H.unEquip(H.shoes)

@@ -1,9 +1,61 @@
-// Areas.dm
-
-// ===
 /area
+	var/fire = null
+	var/atmosalm = ATMOS_ALARM_NONE
+	var/poweralm = TRUE
+	var/party = null
+	var/report_alerts = TRUE // Should atmos alerts notify the AI/computers
+	level = null
+	name = "Space"
+	icon = 'icons/turf/areas.dmi'
+	icon_state = "unknown"
+	layer = AREA_LAYER
+	plane = BLACKNESS_PLANE //Keeping this on the default plane, GAME_PLANE, will make area overlays fail to render on FLOOR_PLANE.
+	luminosity = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
+	invisibility = INVISIBILITY_LIGHTING
+	var/valid_territory = TRUE //used for cult summoning areas on station zlevel
+	var/map_name // Set in New(); preserves the name set by the map maker, even if renamed by the Blueprints.
+	var/lightswitch = TRUE
+
+	var/eject = null
+
+	var/debug = FALSE
+	var/requires_power = TRUE
+	var/always_unpowered = FALSE	//this gets overriden to 1 for space in area/New()
+
+	var/power_equip = TRUE
+	var/power_light = TRUE
+	var/power_environ = TRUE
+	var/music = null
+	var/used_equip = FALSE
+	var/used_light = FALSE
+	var/used_environ = FALSE
+	var/static_equip
+	var/static_light = FALSE
+	var/static_environ
+
+	var/has_gravity = TRUE
+	var/list/apc = list()
+	var/no_air = null
+
+	var/air_doors_activated = FALSE
+
+	var/tele_proof = FALSE
+	var/no_teleportlocs = FALSE
+
+	var/outdoors = FALSE //For space, the asteroid, lavaland, etc. Used with blueprints to determine if we are adding a new area (vs editing a station room)
+	var/xenobiology_compatible = FALSE //Can the Xenobio management console transverse this area by default?
+	var/nad_allowed = FALSE //is the station NAD allowed on this area?
+
+	// This var is used with the maploader (modules/awaymissions/maploader/reader.dm)
+	// if this is 1, when used in a map snippet, this will instantiate a unique
+	// area from any other instances already present (meaning you can have
+	// separate APCs, and so on)
+	var/there_can_be_many = FALSE
+
 	var/global/global_uid = 0
 	var/uid
+
 	var/list/ambientsounds = list('sound/ambience/ambigen1.ogg','sound/ambience/ambigen3.ogg',\
 								'sound/ambience/ambigen4.ogg','sound/ambience/ambigen5.ogg',\
 								'sound/ambience/ambigen6.ogg','sound/ambience/ambigen7.ogg',\
@@ -11,40 +63,67 @@
 								'sound/ambience/ambigen10.ogg','sound/ambience/ambigen11.ogg',\
 								'sound/ambience/ambigen12.ogg','sound/ambience/ambigen14.ogg')
 
-	// This var is used with the maploader (modules/awaymissions/maploader/reader.dm)
-	// if this is 1, when used in a map snippet, this will instantiate a unique
-	// area from any other instances already present (meaning you can have
-	// separate APCs, and so on)
-	var/there_can_be_many = 0
+	var/fast_despawn = FALSE
+	var/can_get_auto_cryod = TRUE
+	var/hide_attacklogs = FALSE // For areas such as thunderdome, lavaland syndiebase, etc which generate a lot of spammy attacklogs. Reduces log priority.
 
+	var/parallax_movedir = 0
+	var/moving = FALSE
 
-/area/New()
-
-	..()
+/area/Initialize(mapload)
+	GLOB.all_areas += src
 	icon_state = ""
-	layer = 10
+	layer = AREA_LAYER
 	uid = ++global_uid
-	all_areas += src
+
 	map_name = name // Save the initial (the name set in the map) name of the area.
 
-	if(type == /area)	// override defaults for space. TODO: make space areas of type /area/space rather than /area
-		requires_power = 1
-		always_unpowered = 1
-		dynamic_lighting = 1
-		power_light = 0
-		power_equip = 0
-		power_environ = 0
-//		lighting_state = 4
-		//has_gravity = 0    // Space has gravity.  Because.. because.
+	if(requires_power)
+		luminosity = 0
+	else
+		power_light = TRUE
+		power_equip = TRUE
+		power_environ = TRUE
 
-	if(requires_power != 0)
-		power_light = 0			//rastaf0
-		power_equip = 0			//rastaf0
-		power_environ = 0		//rastaf0
+		if(dynamic_lighting == DYNAMIC_LIGHTING_FORCED)
+			dynamic_lighting = DYNAMIC_LIGHTING_ENABLED
+			luminosity = 0
+		else if(dynamic_lighting != DYNAMIC_LIGHTING_IFSTARLIGHT)
+			dynamic_lighting = DYNAMIC_LIGHTING_DISABLED
+	if(dynamic_lighting == DYNAMIC_LIGHTING_IFSTARLIGHT)
+		dynamic_lighting = config.starlight ? DYNAMIC_LIGHTING_ENABLED : DYNAMIC_LIGHTING_DISABLED
 
-	power_change()		// all machines set to current power level, also updates lighting icon
+	. = ..()
 
 	blend_mode = BLEND_MULTIPLY // Putting this in the constructor so that it stops the icons being screwed up in the map editor.
+
+	if(!IS_DYNAMIC_LIGHTING(src))
+		add_overlay(/obj/effect/fullbright)
+
+	reg_in_areas_in_z()
+
+	return INITIALIZE_HINT_LATELOAD
+
+/area/LateInitialize()
+	. = ..()
+	power_change()		// all machines set to current power level, also updates lighting icon
+
+/area/proc/reg_in_areas_in_z()
+	if(contents.len)
+		var/list/areas_in_z = space_manager.areas_in_z
+		var/z
+		for(var/i in 1 to contents.len)
+			var/atom/thing = contents[i]
+			if(!thing)
+				continue
+			z = thing.z
+			break
+		if(!z)
+			WARNING("No z found for [src]")
+			return
+		if(!areas_in_z["[z]"])
+			areas_in_z["[z]"] = list()
+		areas_in_z["[z]"] += src
 
 /area/proc/get_cameras()
 	var/list/cameras = list()
@@ -53,15 +132,16 @@
 	return cameras
 
 
-/area/proc/atmosalert(danger_level, var/alarm_source)
-	if(danger_level == ATMOS_ALARM_NONE)
-		atmosphere_alarm.clearAlarm(src, alarm_source)
-	else
-		atmosphere_alarm.triggerAlarm(src, alarm_source, severity = danger_level)
+/area/proc/atmosalert(danger_level, var/alarm_source, var/force = FALSE)
+	if(report_alerts)
+		if(danger_level == ATMOS_ALARM_NONE)
+			SSalarms.atmosphere_alarm.clearAlarm(src, alarm_source)
+		else
+			SSalarms.atmosphere_alarm.triggerAlarm(src, alarm_source, severity = danger_level)
 
-	//Check all the alarms before lowering atmosalm. Raising is perfectly fine.
+	//Check all the alarms before lowering atmosalm. Raising is perfectly fine. If force = 1 we don't care.
 	for(var/obj/machinery/alarm/AA in src)
-		if(!(AA.stat & (NOPOWER|BROKEN)) && !AA.shorted && AA.report_danger_level)
+		if(!(AA.stat & (NOPOWER|BROKEN)) && !AA.shorted && AA.report_danger_level && !force)
 			danger_level = max(danger_level, AA.danger_level)
 
 	if(danger_level != atmosalm)
@@ -87,7 +167,7 @@
 			if(!D.welded)
 				D.activate_alarm()
 				if(D.operating)
-					D.nextstate = CLOSED
+					D.nextstate = FD_CLOSED
 				else if(!D.density)
 					spawn(0)
 						D.close()
@@ -109,14 +189,14 @@
 	if(!fire)
 		fire = 1	//used for firedoor checks
 		updateicon()
-		mouse_opacity = 0
+		mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 		air_doors_close()
 
 /area/proc/fire_reset()
 	if(fire)
 		fire = 0	//used for firedoor checks
 		updateicon()
-		mouse_opacity = 0
+		mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 		air_doors_open()
 
 	return
@@ -135,14 +215,14 @@
 			if(A.density)
 				A.lock()
 
-	burglar_alarm.triggerAlarm(src, trigger)
+	SSalarms.burglar_alarm.triggerAlarm(src, trigger)
 	spawn(600)
-		burglar_alarm.clearAlarm(src, trigger)
+		SSalarms.burglar_alarm.clearAlarm(src, trigger)
 
 /area/proc/set_fire_alarm_effect()
 	fire = 1
 	updateicon()
-	mouse_opacity = 0
+	mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 
 /area/proc/readyalert()
 	if(!eject)
@@ -154,34 +234,21 @@
 		eject = 0
 		updateicon()
 
-/area/proc/radiation_alert()
-	if(!radalert)
-		radalert = 1
-		updateicon()
-
-/area/proc/reset_radiation_alert()
-	if(radalert)
-		radalert = 0
-		updateicon()
-
 /area/proc/partyalert()
 	if(!party)
 		party = 1
 		updateicon()
-		mouse_opacity = 0
+		mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 
 /area/proc/partyreset()
 	if(party)
 		party = 0
-		mouse_opacity = 0
+		mouse_opacity = MOUSE_OPACITY_TRANSPARENT
 		updateicon()
 
 /area/proc/updateicon()
-	if(radalert) // always show the radiation alert, regardless of power
-		icon_state = "radiation"
-		invisibility = INVISIBILITY_LIGHTING
-	else if((fire || eject || party) && (!requires_power||power_environ))//If it doesn't require power, can still activate this proc.
-		if(fire && !radalert && !eject && !party)
+	if((fire || eject || party) && (!requires_power||power_environ))//If it doesn't require power, can still activate this proc.
+		if(fire && !eject && !party)
 			icon_state = "red"
 		else if(!fire && eject && !party)
 			icon_state = "red"
@@ -189,16 +256,18 @@
 			icon_state = "party"
 		else
 			icon_state = "blue-red"
-		invisibility = INVISIBILITY_LIGHTING
 	else
-	//	new lighting behaviour with obj lights
-		icon_state = null
-		invisibility = INVISIBILITY_MAXIMUM
+		var/weather_icon
+		for(var/V in SSweather.processing)
+			var/datum/weather/W = V
+			if(W.stage != END_STAGE && (src in W.impacted_areas))
+				W.update_areas()
+				weather_icon = TRUE
+		if(!weather_icon)
+			icon_state = null
 
 /area/space/updateicon()
 	icon_state = null
-	invisibility = INVISIBILITY_MAXIMUM
-
 
 /*
 #define EQUIP 1
@@ -293,16 +362,13 @@
 		var/mob/M=A
 
 		if(!M.lastarea)
-			M.lastarea = get_area_master(M)
-		newarea = get_area_master(M)
+			M.lastarea = get_area(M)
+		newarea = get_area(M)
 		oldarea = M.lastarea
 
 		if(newarea==oldarea) return
 
 		M.lastarea = src
-
-		// /vg/ - EVENTS!
-		callHook("mob_area_change", list("mob" = M, "newarea" = newarea, "oldarea" = oldarea))
 
 	if(!istype(A,/mob/living))	return
 
@@ -325,7 +391,7 @@
 			L << sound(sound, repeat = 0, wait = 0, volume = 25, channel = CHANNEL_AMBIENCE)
 			L.client.played = 1
 			spawn(600)			//ewww - this is very very bad
-				if(L.&& L.client)
+				if(L && L.client)
 					L.client.played = 0
 
 /area/proc/gravitychange(var/gravitystate = 0, var/area/A)
@@ -346,7 +412,7 @@
 	if(istype(get_turf(M), /turf/space)) // Can't fall onto nothing.
 		return
 
-	if((istype(M,/mob/living/carbon/human/)) && (M.m_intent == MOVE_INTENT_RUN)).
+	if((istype(M,/mob/living/carbon/human/)) && (M.m_intent == MOVE_INTENT_RUN))
 		M.Stun(5)
 		M.Weaken(5)
 
@@ -379,3 +445,9 @@
 		temp_airlock.prison_open()
 	for(var/obj/machinery/door/window/temp_windoor in src)
 		temp_windoor.open()
+
+/area/AllowDrop()
+	CRASH("Bad op: area/AllowDrop() called")
+
+/area/drop_location()
+	CRASH("Bad op: area/drop_location() called")

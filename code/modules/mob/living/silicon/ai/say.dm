@@ -3,7 +3,7 @@
  */
 
 
-/mob/living/silicon/ai/handle_track(var/message, var/verb = "says", var/datum/language/language, var/mob/speaker = null, var/speaker_name, var/atom/follow_target, var/hard_to_hear)
+/mob/living/silicon/ai/handle_track(var/message, var/verb = "says", var/mob/speaker = null, var/speaker_name, var/atom/follow_target, var/hard_to_hear)
 	if(hard_to_hear)
 		return
 
@@ -14,7 +14,7 @@
 	if(ishuman(speaker))
 		var/mob/living/carbon/human/H = speaker
 
-		var/obj/item/weapon/card/id/id = H.wear_id
+		var/obj/item/card/id/id = H.wear_id
 		if((istype(id) && id.is_untrackable()) && H.HasVoiceChanger())
 			changed_voice = 1
 			var/mob/living/carbon/human/I = locate(speaker_name)
@@ -55,7 +55,7 @@
 
 	if(mob_to_track)
 		track = "<a href='byond://?src=[UID()];track=\ref[mob_to_track]'>[speaker_name] ([jobname])</a>"
-		track += "<a href='byond://?src=[UID()];open=\ref[mob_to_track]'>\[O\]</a>"
+		track += "&nbsp;<a href='byond://?src=[UID()];open=\ref[mob_to_track]'>\[Open\]</a>"
 
 	return track
 
@@ -99,7 +99,7 @@ var/const/VOX_PATH = "sound/vox_fem/"
 		to_chat(src, "<span class='warning'>Please wait [round((announcing_vox - world.time) / 10)] seconds.</span>")
 		return
 
-	var/message = input(src, "WARNING: Misuse of this verb can result in you being job banned. More help is available in 'Announcement Help'", "Announcement", last_announcement) as text|null
+	var/message = clean_input("WARNING: Misuse of this verb can result in you being job banned. More help is available in 'Announcement Help'", "Announcement", last_announcement, src)
 
 	last_announcement = message
 
@@ -148,7 +148,7 @@ var/const/VOX_PATH = "sound/vox_fem/"
 		// If there is no single listener, broadcast to everyone in the same z level
 		if(!only_listener)
 			// Play voice for all mobs in the z level
-			for(var/mob/M in player_list)
+			for(var/mob/M in GLOB.player_list)
 				if(M.client)
 					var/turf/T = get_turf(M)
 					if(T && T.z == z_level && M.can_hear())

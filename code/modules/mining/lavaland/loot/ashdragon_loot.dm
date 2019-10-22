@@ -6,18 +6,27 @@
 	var/loot = rand(1,4)
 	switch(loot)
 		if(1)
-			new /obj/item/weapon/melee/ghost_sword(src)
+			new /obj/item/melee/ghost_sword(src)
 		if(2)
-			new /obj/item/weapon/lava_staff(src)
+			new /obj/item/lava_staff(src)
 		if(3)
-			new /obj/item/weapon/spellbook/oneuse/sacredflame(src)
-			new /obj/item/weapon/gun/magic/wand/fireball(src)
+			new /obj/item/spellbook/oneuse/sacredflame(src)
+			new /obj/item/gun/magic/wand/fireball(src)
 		if(4)
-			new /obj/item/weapon/dragons_blood(src)
+			new /obj/item/dragons_blood(src)
+
+
+/obj/structure/closet/crate/necropolis/dragon/crusher
+	name = "firey dragon chest"
+
+/obj/structure/closet/crate/necropolis/dragon/crusher/New()
+	..()
+	new /obj/item/crusher_trophy/tail_spike(src)
+
 
 // Spectral Blade
 
-/obj/item/weapon/melee/ghost_sword
+/obj/item/melee/ghost_sword
 	name = "spectral blade"
 	desc = "A rusted and dulled blade. It doesn't look like it'd do much damage. It glows weakly."
 	icon_state = "spectral"
@@ -32,47 +41,47 @@
 	var/summon_cooldown = 0
 	var/list/mob/dead/observer/spirits
 
-/obj/item/weapon/melee/ghost_sword/New()
+/obj/item/melee/ghost_sword/New()
 	..()
 	spirits = list()
-	processing_objects.Add(src)
-	poi_list |= src
+	START_PROCESSING(SSobj, src)
+	GLOB.poi_list |= src
 
-/obj/item/weapon/melee/ghost_sword/Destroy()
+/obj/item/melee/ghost_sword/Destroy()
 	for(var/mob/dead/observer/G in spirits)
 		G.invisibility = initial(G.invisibility)
 	spirits.Cut()
-	processing_objects.Remove(src)
-	poi_list -= src
+	STOP_PROCESSING(SSobj, src)
+	GLOB.poi_list -= src
 	. = ..()
 
-/obj/item/weapon/melee/ghost_sword/attack_self(mob/user)
+/obj/item/melee/ghost_sword/attack_self(mob/user)
 	if(summon_cooldown > world.time)
 		to_chat(user, "You just recently called out for aid. You don't want to annoy the spirits.")
 		return
 	to_chat(user, "You call out for aid, attempting to summon spirits to your side.")
 
-	notify_ghosts("[user] is raising their [src], calling for your help!", enter_link="<a href=?src=[UID()];follow=1>(Click to help)</a>", source = user, action = NOTIFY_FOLLOW)
+	notify_ghosts("[user] is raising [user.p_their()] [src], calling for your help!", enter_link="<a href=?src=[UID()];follow=1>(Click to help)</a>", source = user, action = NOTIFY_FOLLOW)
 
 	summon_cooldown = world.time + 600
 
-/obj/item/weapon/melee/ghost_sword/Topic(href, href_list)
+/obj/item/melee/ghost_sword/Topic(href, href_list)
 	if(href_list["follow"])
 		var/mob/dead/observer/ghost = usr
 		if(istype(ghost))
 			ghost.ManualFollow(src)
 
-/obj/item/weapon/melee/ghost_sword/process()
+/obj/item/melee/ghost_sword/process()
 	ghost_check()
 
-/obj/item/weapon/melee/ghost_sword/proc/ghost_check()
+/obj/item/melee/ghost_sword/proc/ghost_check()
 	var/ghost_counter = 0
 	var/turf/T = get_turf(src)
 	var/list/contents = T.GetAllContents()
 	var/mob/dead/observer/current_spirits = list()
 
-	for(var/mob/dead/observer/O in player_list)
-		if(is_type_in_list(O.following, contents))
+	for(var/mob/dead/observer/O in GLOB.player_list)
+		if((O.following in contents))
 			ghost_counter++
 			O.invisibility = 0
 			current_spirits |= O
@@ -84,7 +93,7 @@
 
 	return ghost_counter
 
-/obj/item/weapon/melee/ghost_sword/attack(mob/living/target, mob/living/carbon/human/user)
+/obj/item/melee/ghost_sword/attack(mob/living/target, mob/living/carbon/human/user)
 	force = 0
 	var/ghost_counter = ghost_check()
 
@@ -92,7 +101,7 @@
 	user.visible_message("<span class='danger'>[user] strikes with the force of [ghost_counter] vengeful spirits!</span>")
 	..()
 
-/obj/item/weapon/melee/ghost_sword/hit_reaction(mob/living/carbon/human/owner, attack_text, final_block_chance, damage, attack_type)
+/obj/item/melee/ghost_sword/hit_reaction(mob/living/carbon/human/owner, atom/movable/hitby, attack_text = "the attack", final_block_chance = 0, damage = 0, attack_type = MELEE_ATTACK)
 	var/ghost_counter = ghost_check()
 	final_block_chance += Clamp((ghost_counter * 5), 0, 75)
 	owner.visible_message("<span class='danger'>[owner] is protected by a ring of [ghost_counter] ghosts!</span>")
@@ -100,13 +109,13 @@
 
 // Blood
 
-/obj/item/weapon/dragons_blood
+/obj/item/dragons_blood
 	name = "bottle of dragons blood"
 	desc = "You're not actually going to drink this, are you?"
 	icon = 'icons/obj/wizard.dmi'
 	icon_state = "vial"
 
-/obj/item/weapon/dragons_blood/attack_self(mob/living/carbon/human/user)
+/obj/item/dragons_blood/attack_self(mob/living/carbon/human/user)
 	if(!istype(user))
 		return
 
@@ -116,7 +125,7 @@
 	switch(random)
 		if(1)
 			to_chat(user, "<span class='danger'>Your flesh begins to melt! Miraculously, you seem fine otherwise.</span>")
-			H.set_species("Skeleton")
+			H.set_species(/datum/species/skeleton)
 		if(2)
 			to_chat(user, "<span class='danger'>Power courses through you! You can now shift your form at will.")
 			if(user.mind)
@@ -147,7 +156,7 @@
 
 //Lava Staff
 
-/obj/item/weapon/lava_staff
+/obj/item/lava_staff
 	name = "staff of lava"
 	desc = "The ability to fill the emergency shuttle with lava. What more could you want out of life?"
 	icon_state = "staffofstorms"
@@ -159,11 +168,10 @@
 	force = 25
 	damtype = BURN
 	hitsound = 'sound/weapons/sear.ogg'
-	burn_state = LAVA_PROOF | FIRE_PROOF
-	unacidable = 1
-	var/turf_type = /turf/unsimulated/floor/lava // /turf/simulated/floor/plating/lava/smooth once Lavaland turfs are added
+	resistance_flags = LAVA_PROOF | FIRE_PROOF | ACID_PROOF
+	var/turf_type = /turf/simulated/floor/plating/lava/smooth
 	var/transform_string = "lava"
-	var/reset_turf_type = /turf/simulated/floor/plating/airless/asteroid // /turf/simulated/floor/plating/asteroid/basalt once Lavaland turfs are added
+	var/reset_turf_type = /turf/simulated/floor/plating/asteroid/basalt
 	var/reset_string = "basalt"
 	var/create_cooldown = 100
 	var/create_delay = 30
@@ -171,11 +179,11 @@
 	var/timer = 0
 	var/banned_turfs
 
-/obj/item/weapon/lava_staff/New()
+/obj/item/lava_staff/New()
 	. = ..()
 	banned_turfs = typecacheof(list(/turf/space/transit, /turf/unsimulated))
 
-/obj/item/weapon/lava_staff/afterattack(atom/target, mob/user, proximity_flag, click_parameters)
+/obj/item/lava_staff/afterattack(atom/target, mob/user, proximity_flag, click_parameters)
 	..()
 	if(timer > world.time)
 		return
@@ -189,7 +197,7 @@
 		if(!istype(T))
 			return
 		if(!istype(T, turf_type))
-			var/obj/effect/overlay/temp/lavastaff/L = new /obj/effect/overlay/temp/lavastaff(T)
+			var/obj/effect/temp_visual/lavastaff/L = new /obj/effect/temp_visual/lavastaff(T)
 			L.alpha = 0
 			animate(L, alpha = 255, time = create_delay)
 			user.visible_message("<span class='danger'>[user] points [src] at [T]!</span>")
@@ -198,7 +206,7 @@
 				user.visible_message("<span class='danger'>[user] turns \the [T] into [transform_string]!</span>")
 				message_admins("[key_name_admin(user)] fired the lava staff at [get_area(target)] (<A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[T.x];Y=[T.y];Z=[T.z]'>JMP</a>).")
 				log_game("[key_name(user)] fired the lava staff at [get_area(target)] ([T.x], [T.y], [T.z]).")
-				T.ChangeTurf(turf_type)
+				T.TerraformTurf(turf_type, keep_icon = FALSE)
 				timer = world.time + create_cooldown
 				qdel(L)
 			else
@@ -207,10 +215,10 @@
 				return
 		else
 			user.visible_message("<span class='danger'>[user] turns \the [T] into [reset_string]!</span>")
-			T.ChangeTurf(reset_turf_type)
+			T.TerraformTurf(reset_turf_type, keep_icon = FALSE)
 			timer = world.time + reset_cooldown
-		playsound(T,'sound/magic/Fireball.ogg', 200, 1)
+		playsound(T,'sound/magic/fireball.ogg', 200, 1)
 
-/obj/effect/overlay/temp/lavastaff
+/obj/effect/temp_visual/lavastaff
 	icon_state = "lavastaff_warn"
 	duration = 50

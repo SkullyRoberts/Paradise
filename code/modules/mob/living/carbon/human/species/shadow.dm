@@ -4,11 +4,9 @@
 
 	icobase = 'icons/mob/human_races/r_shadow.dmi'
 	deform = 'icons/mob/human_races/r_shadow.dmi'
+	dangerous_existence = TRUE
 
-	default_language = "Galactic Common"
 	unarmed_type = /datum/unarmed_attack/claws
-
-	ignored_by = list(/mob/living/simple_animal/hostile/faithless)
 
 	blood_color = "#CCCCCC"
 	flesh_color = "#AAAAAA"
@@ -18,8 +16,7 @@
 		)
 
 	species_traits = list(NO_BREATHE, NO_BLOOD, RADIMMUNE, VIRUSIMMUNE)
-
-	oxy_mod = 0
+	dies_at_threshold = TRUE
 
 	dietflags = DIET_OMNI		//the mutation process allowed you to now digest all foods regardless of initial race
 	reagent_tag = PROCESS_ORG
@@ -29,7 +26,7 @@
 		"is twisting their own neck!",
 		"is staring into the closest light source!")
 
-	var/grant_vision_toggle = 1
+	var/grant_vision_toggle = TRUE
 	var/datum/action/innate/shadow/darkvision/vision_toggle
 
 /datum/action/innate/shadow/darkvision //Darkvision toggle so shadowpeople can actually see where darkness is
@@ -47,19 +44,21 @@
 		H.vision_type = null
 		to_chat(H, "<span class='notice'>You adjust your vision to recognize the shadows.</span>")
 
-/datum/species/shadow/grant_abilities(var/mob/living/carbon/human/H)
-	. = ..()
+/datum/species/shadow/on_species_gain(mob/living/carbon/human/H)
+	..()
 	if(grant_vision_toggle)
 		vision_toggle = new
 		vision_toggle.Grant(H)
+	H.faction |= "faithless"
 
-/datum/species/shadow/remove_abilities(var/mob/living/carbon/human/H)
-	. = ..()
+/datum/species/shadow/on_species_loss(mob/living/carbon/human/H)
+	..()
 	if(grant_vision_toggle && vision_toggle)
 		H.vision_type = null
 		vision_toggle.Remove(H)
+	H.faction -= "faithless"
 
-/datum/species/shadow/handle_life(var/mob/living/carbon/human/H)
+/datum/species/shadow/handle_life(mob/living/carbon/human/H)
 	var/light_amount = 0
 	if(isturf(H.loc))
 		var/turf/T = H.loc

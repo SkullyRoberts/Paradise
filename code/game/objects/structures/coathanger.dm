@@ -13,7 +13,7 @@
 	coat = null
 	update_icon()
 
-/obj/structure/coatrack/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
+/obj/structure/coatrack/attackby(obj/item/W as obj, mob/user as mob, params)
 	var/can_hang = 0
 	for(var/T in allowed)
 		if(istype(W,T))
@@ -25,7 +25,6 @@
 		coat.loc = src
 		update_icon()
 	else
-		to_chat(user, "<span class='notice'>You cannot hang [W] on [src]</span>")
 		return ..()
 
 /obj/structure/coatrack/CanPass(atom/movable/mover, turf/target, height=0)

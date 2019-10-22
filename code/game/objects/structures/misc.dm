@@ -11,9 +11,6 @@
 	anchored = 1
 	density = 1
 
-	attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-		return attack_hand(user)
-
 	attack_hand(mob/user as mob)
 		to_chat(user, "Civilians: NT is recruiting! Please head SOUTH to the NT Recruitment office to join the station's crew!")
 
@@ -25,11 +22,6 @@
 	icon_state = "teleconsole"
 	anchored = 1
 	density = 0
-
-	attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-
-		return attack_hand(user)
-
 
 	attack_hand(mob/user as mob)
 
@@ -46,8 +38,7 @@
 
 					playsound(user.loc, 'sound/effects/phasein.ogg', 25, 1)
 					playsound(user.loc, 'sound/effects/sparks2.ogg', 50, 1)
-					anim(user.loc,user,'icons/mob/mob.dmi',,"phasein",,user.dir)
-
+					new /obj/effect/temp_visual/dir_setting/ninja/phase(get_turf(user), user.dir)
 					to_chat(user, "<span class='boldnotice'>VOID-Shift</span> translocation successful")
 
 				if("No")
@@ -88,16 +79,16 @@
 	var/atom/attack_atom
 
 
-/obj/structure/ghost_beacon/initialize()
+/obj/structure/ghost_beacon/Initialize()
 	. = ..()
 	last_ghost_alert = world.time
 	attack_atom = src
 	if(active)
-		processing_objects.Add(src)
+		START_PROCESSING(SSobj, src)
 
 /obj/structure/ghost_beacon/Destroy()
 	if(active)
-		processing_objects.Remove(src)
+		STOP_PROCESSING(SSobj, src)
 	attack_atom = null
 	return ..()
 
@@ -112,9 +103,9 @@
 		return
 	to_chat(user, "<span class='notice'>You [active ? "disable" : "enable"] \the [src].</span>")
 	if(active)
-		processing_objects.Remove(src)
+		STOP_PROCESSING(SSobj, src)
 	else
-		processing_objects.Add(src)
+		START_PROCESSING(SSobj, src)
 	active = !active
 
 /obj/structure/ghost_beacon/process()

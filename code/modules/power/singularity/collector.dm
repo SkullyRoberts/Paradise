@@ -8,15 +8,17 @@ var/global/list/rad_collectors = list()
 	anchored = 0
 	density = 1
 	req_access = list(access_engine_equip)
-//	use_power = 0
-	var/obj/item/weapon/tank/plasma/P = null
+//	use_power = NO_POWER_USE
+	max_integrity = 350
+	integrity_failure = 80
+	var/obj/item/tank/plasma/P = null
 	var/last_power = 0
 	var/active = 0
 	var/locked = 0
 	var/drainratio = 1
 
-/obj/machinery/power/rad_collector/New()
-	..()
+/obj/machinery/power/rad_collector/Initialize(mapload)
+	. = ..()
 	rad_collectors += src
 
 /obj/machinery/power/rad_collector/Destroy()
@@ -45,16 +47,15 @@ var/global/list/rad_collectors = list()
 		else
 			to_chat(user, "<span class='warning'>The controls are locked!</span>")
 			return
-..()
 
 
 /obj/machinery/power/rad_collector/attackby(obj/item/W, mob/user, params)
-	if(istype(W, /obj/item/device/multitool))
+	if(istype(W, /obj/item/multitool))
 		to_chat(user, "<span class='notice'>The [W.name] detects that [last_power]W were recently produced.</span>")
 		return 1
-	else if(istype(W, /obj/item/device/analyzer) && P)
+	else if(istype(W, /obj/item/analyzer) && P)
 		atmosanalyzer_scan(P.air_contents, user)
-	else if(istype(W, /obj/item/weapon/tank/plasma))
+	else if(istype(W, /obj/item/tank/plasma))
 		if(!src.anchored)
 			to_chat(user, "<span class='warning'>The [src] needs to be secured to the floor first.</span>")
 			return 1
@@ -65,11 +66,11 @@ var/global/list/rad_collectors = list()
 		src.P = W
 		W.loc = src
 		update_icons()
-	else if(istype(W, /obj/item/weapon/crowbar))
+	else if(istype(W, /obj/item/crowbar))
 		if(P && !src.locked)
 			eject()
 			return 1
-	else if(istype(W, /obj/item/weapon/wrench))
+	else if(istype(W, /obj/item/wrench))
 		if(P)
 			to_chat(user, "<span class='notice'>Remove the plasma tank first.</span>")
 			return 1
@@ -82,7 +83,7 @@ var/global/list/rad_collectors = list()
 			connect_to_network()
 		else
 			disconnect_from_network()
-	else if(istype(W, /obj/item/weapon/card/id)||istype(W, /obj/item/device/pda))
+	else if(istype(W, /obj/item/card/id)||istype(W, /obj/item/pda))
 		if(src.allowed(user))
 			if(active)
 				src.locked = !src.locked
@@ -94,20 +95,16 @@ var/global/list/rad_collectors = list()
 			to_chat(user, "<span class='warning'>Access denied!</span>")
 			return 1
 	else
-		..()
-		return 1
+		return ..()
 
-
-/obj/machinery/power/rad_collector/ex_act(severity)
-	switch(severity)
-		if(2, 3)
-			eject()
-	return ..()
-
+/obj/machinery/power/rad_collector/obj_break(damage_flag)
+	if(!(stat & BROKEN) && !(flags & NODECONSTRUCT))
+		eject()
+		stat |= BROKEN
 
 /obj/machinery/power/rad_collector/proc/eject()
 	locked = 0
-	var/obj/item/weapon/tank/plasma/Z = src.P
+	var/obj/item/tank/plasma/Z = src.P
 	if(!Z)
 		return
 	Z.loc = get_turf(src)
@@ -149,4 +146,3 @@ var/global/list/rad_collectors = list()
 		flick("ca_deactive", src)
 	update_icons()
 	return
-

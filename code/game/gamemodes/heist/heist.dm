@@ -51,8 +51,9 @@ var/global/list/obj/cortical_stacks = list() //Stacks for 'leave nobody behind' 
 		raider_num--
 
 	for(var/datum/mind/raider in raiders)
-		raider.assigned_role = "MODE"
+		raider.assigned_role = SPECIAL_ROLE_RAIDER
 		raider.special_role = SPECIAL_ROLE_RAIDER
+		raider.offstation_role = TRUE
 	..()
 	return 1
 
@@ -101,7 +102,7 @@ var/global/list/obj/cortical_stacks = list() //Stacks for 'leave nobody behind' 
 	vox.name = vox.real_name
 	newraider.name = vox.name
 	vox.age = rand(12,20)
-	vox.set_species("Vox")
+	vox.set_species(/datum/species/vox)
 	vox.s_tone = rand(1, 6)
 	vox.languages = list() // Removing language from chargen.
 	vox.flavor_text = ""
@@ -125,7 +126,7 @@ var/global/list/obj/cortical_stacks = list() //Stacks for 'leave nobody behind' 
 		limb.status &= ~ORGAN_ROBOT
 
 	//Now apply cortical stack.
-	var/obj/item/weapon/implant/cortical/I = new(vox)
+	var/obj/item/implant/cortical/I = new(vox)
 	I.implant(vox)
 	cortical_stacks += I
 
@@ -311,5 +312,5 @@ datum/game_mode/proc/auto_declare_completion_heist()
 	message_admins("[key_name_admin(user)] has pressed the vox win button.")
 	log_admin("[key_name(user)] pressed the vox win button during a vox round.")
 
-	var/datum/game_mode/heist/H = ticker.mode
+	var/datum/game_mode/heist/H = SSticker.mode
 	H.win_button_triggered = 1

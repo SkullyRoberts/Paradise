@@ -4,7 +4,6 @@
 	icon = 'icons/atmos/pipes.dmi'
 	icon_state = "cap"
 	level = 2
-	layer = 2.4 //under wires with their 2.44
 
 	volume = 35
 
@@ -55,15 +54,17 @@
 		node.update_underlays()
 
 /obj/machinery/atmospherics/pipe/cap/update_icon(var/safety = 0)
+	..()
+	
 	if(!check_icon_cache())
 		return
 
 	alpha = 255
 
 	overlays.Cut()
-	overlays += icon_manager.get_atmos_icon("pipe", , pipe_color, "cap" + icon_connect_type)
+	overlays += GLOB.pipe_icon_manager.get_atmos_icon("pipe", , pipe_color, "cap" + icon_connect_type)
 
-/obj/machinery/atmospherics/pipe/cap/initialize()
+/obj/machinery/atmospherics/pipe/cap/atmos_init()
 	..()
 	for(var/obj/machinery/atmospherics/target in get_step(src, dir))
 		if(target.initialize_directions & get_dir(target,src))

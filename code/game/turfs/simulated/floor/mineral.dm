@@ -6,6 +6,7 @@
  * Bananium floor
  * Diamond floor
  * Uranium floor
+ * Shuttle floor (Titanium)
  */
 
 /turf/simulated/floor/mineral
@@ -32,12 +33,13 @@
 	icons = list("plasma","plasma_dam")
 
 /turf/simulated/floor/mineral/plasma/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+	..()
 	if(exposed_temperature > 300)
 		PlasmaBurn()
 
-/turf/simulated/floor/mineral/plasma/attackby(obj/item/weapon/W, mob/user, params)
+/turf/simulated/floor/mineral/plasma/attackby(obj/item/W, mob/user, params)
 	if(is_hot(W) > 300)//If the temperature of the object is over 300, then ignite
-		message_admins("Plasma flooring was ignited by [key_name_admin(user)](<A HREF='?_src_=holder;adminmoreinfo=\ref[user]'>?</A>) (<A HREF='?_src_=holder;adminplayerobservefollow=\ref[user]'>FLW</A>) in ([x],[y],[z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
+		message_admins("Plasma flooring was ignited by [key_name_admin(user)]([ADMIN_QUE(user,"?")]) ([ADMIN_FLW(user,"FLW")]) in ([x],[y],[z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
 		log_game("Plasma flooring was <b>ignited by [key_name(user)] in ([x],[y],[z])")
 		investigate_log("was <font color='red'><b>ignited</b></font> by [key_name(user)]","atmos")
 		ignite(is_hot(W))
@@ -76,6 +78,62 @@
 	floor_tile = /obj/item/stack/tile/mineral/silver/fancy
 	icons = list("silverfancy","silverfancy_dam")
 
+//TITANIUM (shuttle)
+
+/turf/simulated/floor/mineral/titanium
+	name = "shuttle floor"
+	icon_state = "titanium"
+	floor_tile = /obj/item/stack/tile/mineral/titanium
+	broken_states = list("titanium_dam1","titanium_dam2","titanium_dam3","titanium_dam4","titanium_dam5")
+
+/turf/simulated/floor/mineral/titanium/airless
+	oxygen = 0.01
+	nitrogen = 0.01
+	temperature = TCMB
+
+/turf/simulated/floor/mineral/titanium/blue
+	icon_state = "titanium_blue"
+
+/turf/simulated/floor/mineral/titanium/blue/airless
+	oxygen = 0.01
+	nitrogen = 0.01
+	temperature = TCMB
+
+/turf/simulated/floor/mineral/titanium/yellow
+	icon_state = "titanium_yellow"
+
+/turf/simulated/floor/mineral/titanium/yellow/airless
+	oxygen = 0.01
+	nitrogen = 0.01
+	temperature = TCMB
+
+/turf/simulated/floor/mineral/titanium/purple
+	icon_state = "titanium_purple"
+	floor_tile = /obj/item/stack/tile/mineral/titanium/purple
+
+/turf/simulated/floor/mineral/titanium/purple/airless
+	oxygen = 0.01
+	nitrogen = 0.01
+	temperature = TCMB
+
+//PLASTITANIUM (syndieshuttle)
+/turf/simulated/floor/mineral/plastitanium
+	name = "shuttle floor"
+	icon_state = "plastitanium"
+	floor_tile = /obj/item/stack/tile/mineral/plastitanium
+	broken_states = list("plastitanium_dam1","plastitanium_dam2","plastitanium_dam3","plastitanium_dam4","plastitanium_dam5")
+
+/turf/simulated/floor/mineral/plastitanium/red
+	icon_state = "plastitanium_red"
+
+/turf/simulated/floor/mineral/plastitanium/red/airless
+	oxygen = 0.01
+	nitrogen = 0.01
+	temperature = TCMB
+
+/turf/simulated/floor/mineral/plastitanium/red/brig
+	name = "brig floor"
+
 //BANANIUM
 /turf/simulated/floor/mineral/bananium
 	name = "bananium floor"
@@ -90,7 +148,7 @@
 		if(istype(M))
 			squeek()
 
-/turf/simulated/floor/mineral/bananium/attackby(obj/item/weapon/W, mob/user, params)
+/turf/simulated/floor/mineral/bananium/attackby(obj/item/W, mob/user, params)
 	.=..()
 	if(!.)
 		honk()
@@ -101,23 +159,31 @@
 		honk()
 
 /turf/simulated/floor/mineral/bananium/proc/honk()
-	if(!spam_flag)
-		spam_flag = 1
+	if(spam_flag < world.time)
 		playsound(src, 'sound/items/bikehorn.ogg', 50, 1)
-		spawn(20)
-			spam_flag = 0
+		spam_flag = world.time + 20
 
 /turf/simulated/floor/mineral/bananium/proc/squeek()
-	if(!spam_flag)
-		spam_flag = 1
+	if(spam_flag < world.time)
 		playsound(src, "clownstep", 50, 1)
-		spawn(10)
-			spam_flag = 0
+		spam_flag = world.time + 10
 
 /turf/simulated/floor/mineral/bananium/airless
 	oxygen = 0.01
 	nitrogen = 0.01
 	temperature = TCMB
+
+
+/turf/simulated/floor/mineral/bananium/lubed/Initialize(mapload)
+	. = ..()
+	MakeSlippery(TURF_WET_LUBE, TRUE)
+
+/turf/simulated/floor/mineral/bananium/lubed/pry_tile(obj/item/C, mob/user, silent = FALSE) //I want to get off Mr Honk's Wild Ride
+	if(ishuman(user))
+		var/mob/living/carbon/human/H = user
+		to_chat(H, "<span class='warning'>You lose your footing trying to pry off the tile!</span>")
+		H.slip("the floor", 0, 5, tilesSlipped = 4, walkSafely = 0, slipAny = 1)
+	return
 
 //TRANQUILLITE
 /turf/simulated/floor/mineral/tranquillite
@@ -149,7 +215,7 @@
 		if(istype(AM))
 			radiate()
 
-/turf/simulated/floor/mineral/uranium/attackby(obj/item/weapon/W, mob/user, params)
+/turf/simulated/floor/mineral/uranium/attackby(obj/item/W, mob/user, params)
 	.=..()
 	if(!.)
 		radiate()
@@ -178,11 +244,11 @@
 	floor_tile = /obj/item/stack/tile/mineral/abductor
 	icons = list("alienpod1", "alienpod2", "alienpod3", "alienpod4", "alienpod5", "alienpod6", "alienpod7", "alienpod8", "alienpod9")
 
-/turf/simulated/floor/mineral/New()
+/turf/simulated/floor/mineral/abductor/New()
 	..()
 	icon_state = "alienpod[rand(1,9)]"
 
-/turf/simulated/floor/mineral/break_tile()
+/turf/simulated/floor/mineral/abductor/break_tile()
 	return //unbreakable
 
 /turf/simulated/floor/mineral/abductor/burn_tile()

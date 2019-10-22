@@ -15,8 +15,6 @@
 
 	var/obj/machinery/power/generator/generator
 
-	layer = 2.45 // Just above wires
-
 	anchored = 1
 	density = 1
 
@@ -100,7 +98,7 @@
 		else
 			return "South"
 
-/obj/machinery/atmospherics/binary/circulator/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
+/obj/machinery/atmospherics/binary/circulator/attackby(obj/item/W as obj, mob/user as mob, params)
 	if(ismultitool(W))
 		if(side_inverted == 0)
 			side_inverted = 1
@@ -109,9 +107,11 @@
 		to_chat(user, "<span class='notice'>You reverse the circulator's valve settings. The inlet of the circulator is now on the [get_inlet_side(dir)] side.</span>")
 		desc = "A gas circulator pump and heat exchanger. Its input port is on the [get_inlet_side(dir)] side, and its output port is on the [get_outlet_side(dir)] side."
 	else
-		..()
+		return ..()
 
 /obj/machinery/atmospherics/binary/circulator/update_icon()
+	..()
+
 	if(stat & (BROKEN|NOPOWER))
 		icon_state = "circ[side]-p"
 	else if(last_pressure_delta > 0)

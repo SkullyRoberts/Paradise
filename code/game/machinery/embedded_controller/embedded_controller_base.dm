@@ -4,7 +4,7 @@
 	name = "Embedded Controller"
 	anchored = 1
 
-	use_power = 1
+	use_power = IDLE_POWER_USE
 	idle_power_usage = 10
 
 	var/on = 1
@@ -52,11 +52,17 @@
 	var/frequency = 1379
 	var/radio_filter = null
 	var/datum/radio_frequency/radio_connection
-	unacidable = 1
+	resistance_flags = FIRE_PROOF | ACID_PROOF
 
-/obj/machinery/embedded_controller/radio/initialize()
+/obj/machinery/embedded_controller/radio/Initialize()
 	..()
 	set_frequency(frequency)
+
+/obj/machinery/embedded_controller/radio/Destroy()
+	if(SSradio)
+		SSradio.remove_object(src, frequency)
+	radio_connection = null
+	return ..()
 
 /obj/machinery/embedded_controller/radio/update_icon()
 	if(on && program)
@@ -76,6 +82,6 @@
 		qdel(signal)
 
 /obj/machinery/embedded_controller/radio/proc/set_frequency(new_frequency)
-	radio_controller.remove_object(src, frequency)
+	SSradio.remove_object(src, frequency)
 	frequency = new_frequency
-	radio_connection = radio_controller.add_object(src, frequency, radio_filter)
+	radio_connection = SSradio.add_object(src, frequency, radio_filter)

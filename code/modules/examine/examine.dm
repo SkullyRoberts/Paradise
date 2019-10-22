@@ -49,17 +49,8 @@
 	description_holders["icon"] = "[bicon(A)]"
 	description_holders["desc"] = A.desc
 
-// Byond seemingly calls stat, each tick.
-// Calling things each tick can get expensive real quick.
-// So we slow this down a little.
-// See: http://www.byond.com/docs/ref/info.html#/client/proc/Stat
 /client/Stat()
 	. = ..()
-	if(holder)
-		sleep(1)
-	else
-		sleep(5)
-		stoplag()
 	if(usr && statpanel("Examine"))
 		stat(null,"[description_holders["icon"]]    <font size='5'>[description_holders["name"]]</font>") //The name, written in big letters.
 		stat(null,"[description_holders["desc"]]") //the default examine text.
@@ -69,12 +60,3 @@
 			stat(null,"<font color='#298A08'><b>[description_holders["fluff"]]</b></font>") //Yellow, fluff-related text.
 		if(description_holders["antag"])
 			stat(null,"<font color='#8A0808'><b>[description_holders["antag"]]</b></font>") //Red, malicious antag-related text
-
-//override examinate verb to update description holders when things are examined
-/mob/examinate(atom/A as mob|obj|turf in view())
-	if(..())
-		return 1
-
-	var/is_antag = (isAntag(src) || isobserver(src)) //ghosts don't have minds
-	if(client)
-		client.update_description_holders(A, is_antag)

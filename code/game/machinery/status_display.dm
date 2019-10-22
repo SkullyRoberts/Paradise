@@ -1,7 +1,7 @@
 #define FONT_SIZE "5pt"
 #define FONT_COLOR "#09f"
 #define WARNING_FONT_COLOR "#f90"
-#define FONT_STYLE "Arial Black"
+#define FONT_STYLE "Small Fonts"
 #define SCROLL_SPEED 2
 
 // Status display
@@ -16,7 +16,7 @@
 	name = "status display"
 	anchored = 1
 	density = 0
-	use_power = 1
+	use_power = IDLE_POWER_USE
 	idle_power_usage = 10
 	var/mode = 1	// 0 = Blank
 					// 1 = Shuttle timer
@@ -30,7 +30,7 @@
 	var/index1			// display index for scrolling messages or 0 if non-scrolling
 	var/index2
 
-	var/frequency = 1435		// radio frequency
+	var/frequency = DISPLAY_FREQ		// radio frequency
 
 	var/friendc = 0      // track if Friend Computer mode
 	var/ignore_friendc = 0
@@ -39,6 +39,7 @@
 
 	maptext_height = 26
 	maptext_width = 32
+	maptext_y = -1
 
 	var/const/CHARS_PER_LINE = 5
 	var/const/STATUS_DISPLAY_BLANK = 0
@@ -49,15 +50,15 @@
 	var/const/STATUS_DISPLAY_CUSTOM = 99
 
 /obj/machinery/status_display/Destroy()
-	if(radio_controller)
-		radio_controller.remove_object(src,frequency)
+	if(SSradio)
+		SSradio.remove_object(src,frequency)
 	return ..()
 
 // register for radio system
-/obj/machinery/status_display/initialize()
+/obj/machinery/status_display/Initialize()
 	..()
-	if(radio_controller)
-		radio_controller.add_object(src, frequency)
+	if(SSradio)
+		SSradio.add_object(src, frequency)
 
 // timed process
 /obj/machinery/status_display/process()
@@ -77,6 +78,9 @@
 	set_picture("ai_bsod")
 	..(severity)
 
+/obj/machinery/status_display/get_spooked()
+	spookymode = TRUE
+
 // set what is displayed
 /obj/machinery/status_display/proc/update()
 	if(friendc && !ignore_friendc)
@@ -89,16 +93,16 @@
 			return 1
 		if(STATUS_DISPLAY_TRANSFER_SHUTTLE_TIME)				//emergency shuttle timer
 			var/use_warn = 0
-			if(shuttle_master.emergency && shuttle_master.emergency.timer)
+			if(SSshuttle.emergency && SSshuttle.emergency.timer)
 				use_warn = 1
-				message1 = "-[shuttle_master.emergency.getModeStr()]-"
-				message2 = shuttle_master.emergency.getTimerStr()
+				message1 = "-[SSshuttle.emergency.getModeStr()]-"
+				message2 = SSshuttle.emergency.getTimerStr()
 
 				if(length(message2) > CHARS_PER_LINE)
 					message2 = "Error!"
 			else
 				message1 = "TIME"
-				message2 = worldtime2text()
+				message2 = station_time_timestamp("hh:mm")
 			update_display(message1, message2, use_warn)
 			return 1
 		if(STATUS_DISPLAY_MESSAGE)	//custom messages
@@ -126,15 +130,15 @@
 			return 1
 		if(STATUS_DISPLAY_TIME)
 			message1 = "TIME"
-			message2 = worldtime2text()
+			message2 = station_time_timestamp("hh:mm")
 			update_display(message1, message2)
 			return 1
 	return 0
 
 /obj/machinery/status_display/examine(mob/user)
-	. = ..(user)
+	. = ..()
 	if(mode != STATUS_DISPLAY_BLANK && mode != STATUS_DISPLAY_ALERT)
-		to_chat(user, "The display says:<br>\t[sanitize(message1)]<br>\t[sanitize(message2)]")
+		. += "The display says:<br>\t[sanitize(message1)]<br>\t[sanitize(message2)]"
 
 /obj/machinery/status_display/proc/set_message(m1, m2)
 	if(m1)
@@ -157,6 +161,8 @@
 	overlays += image('icons/obj/status_display.dmi', icon_state=picture_state)
 
 /obj/machinery/status_display/proc/update_display(line1, line2, warning = 0)
+	line1 = uppertext(line1)
+	line2 = uppertext(line2)
 	var/new_text = {"<div style="font-size:[FONT_SIZE];color:[warning ? WARNING_FONT_COLOR : FONT_COLOR];font:'[FONT_STYLE]';text-align:center;" valign="top">[line1]<br>[line2]</div>"}
 	if(maptext != new_text)
 		maptext = new_text
@@ -224,6 +230,9 @@
 	set_picture("ai_bsod")
 	..(severity)
 
+/obj/machinery/ai_status_display/get_spooked()
+	spookymode = TRUE
+
 /obj/machinery/ai_status_display/proc/update()
 	if(mode==0) //Blank
 		overlays.Cut()
@@ -276,7 +285,6 @@
 		overlays.Cut()
 	overlays += image('icons/obj/status_display.dmi', icon_state=picture_state)
 
-#undef CHARS_PER_LINE
 #undef FONT_SIZE
 #undef FONT_COLOR
 #undef WARNING_FONT_COLOR

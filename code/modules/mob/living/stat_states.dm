@@ -6,10 +6,12 @@
 		return 0
 	else if(stat == UNCONSCIOUS)
 		return 0
-	add_logs(src, null, "fallen unconscious at [atom_loc_line(get_turf(src))]", admin=0, print_attack_log = 0)
+	create_attack_log("<font color='red'>Fallen unconscious at [atom_loc_line(get_turf(src))]</font>")
+	log_game("[key_name(src)] fell unconscious at [atom_loc_line(get_turf(src))]")
 	stat = UNCONSCIOUS
 	if(updating)
-	// 	update_blind_effects()
+		update_sight()
+		update_blind_effects()
 		update_canmove()
 	return 1
 
@@ -19,17 +21,19 @@
 		return 0
 	else if(stat == CONSCIOUS)
 		return 0
-	add_logs(src, null, "woken up at [atom_loc_line(get_turf(src))]", admin=0, print_attack_log = 0)
+	create_attack_log("<font color='red'>Woken up at [atom_loc_line(get_turf(src))]</font>")
+	log_game("[key_name(src)] woke up at [atom_loc_line(get_turf(src))]")
 	stat = CONSCIOUS
 	if(updating)
-		// update_blind_effects()
+		update_sight()
+		update_blind_effects()
 		update_canmove()
 	return 1
 
 /mob/living/proc/can_be_revived()
 	. = TRUE
 	// if(health <= min_health)
-	if(health <= config.health_threshold_dead)
+	if(health <= HEALTH_THRESHOLD_DEAD)
 		return FALSE
 
 // death() is used to make a mob die
@@ -40,15 +44,19 @@
 		return 0
 	if(!can_be_revived())
 		return 0
-	add_logs(src, null, "came back to life at [atom_loc_line(get_turf(src))]", admin=0, print_attack_log = 0)
+	create_attack_log("<font color='red'>Came back to life at [atom_loc_line(get_turf(src))]</font>")
+	log_game("[key_name(src)] came back to life at [atom_loc_line(get_turf(src))]")
 	stat = CONSCIOUS
-	dead_mob_list -= src
-	living_mob_list += src
+	GLOB.dead_mob_list -= src
+	GLOB.living_mob_list += src
+	if(mind)
+		GLOB.respawnable_list -= src
 	timeofdeath = null
 	if(updating)
 		update_canmove()
-	// update_blind_effects()
-	updatehealth()
+		update_blind_effects()
+		update_sight()
+		updatehealth("update revive")
 
 	for(var/s in ownedSoullinks)
 		var/datum/soullink/S = s
@@ -56,4 +64,13 @@
 	for(var/s in sharedSoullinks)
 		var/datum/soullink/S = s
 		S.sharerRevives(src)
+
+	if(mind)
+		for(var/S in mind.spell_list)
+			var/obj/effect/proc_holder/spell/spell = S
+			spell.updateButtonIcon()
+
 	return 1
+
+/mob/living/proc/check_death_method()
+	return TRUE

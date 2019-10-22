@@ -1,4 +1,4 @@
-/mob/living/carbon/alien/larva/emote(var/act,var/m_type=1,var/message = null)
+/mob/living/carbon/alien/larva/emote(act, m_type = 1, message = null, force)
 	var/param = null
 	if(findtext(act, "-", 1, null))
 		var/t1 = findtext(act, "-", 1, null)
@@ -114,7 +114,7 @@
 		else
 			to_chat(src, text("Invalid Emote: []", act))
 	if((message && src.stat == 0))
-		log_emote("[name]/[key] : [message]")
+		log_emote(message, src)
 		if(m_type & 1)
 			for(var/mob/O in viewers(src, null))
 				O.show_message(message, m_type)

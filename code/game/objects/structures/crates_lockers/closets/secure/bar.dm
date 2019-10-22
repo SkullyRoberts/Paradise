@@ -7,21 +7,21 @@
 	icon_opened = "cabinetdetective_open"
 	icon_broken = "cabinetdetective_broken"
 	icon_off = "cabinetdetective_broken"
-	burn_state = FLAMMABLE
-	burntime = 20
+	resistance_flags = FLAMMABLE
+	max_integrity = 70
 
 /obj/structure/closet/secure_closet/bar/New()
 	..()
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
-	new /obj/item/weapon/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
+	new /obj/item/reagent_containers/food/drinks/cans/beer( src )
 
 /obj/structure/closet/secure_closet/bar/update_icon()
 	if(broken)

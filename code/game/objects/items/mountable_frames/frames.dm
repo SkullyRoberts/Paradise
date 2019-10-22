@@ -5,11 +5,11 @@
 	var/sheets_refunded = 2
 	var/list/mount_reqs = list() //can contain simfloor, nospace. Used in try_build to see if conditions are needed, then met
 	toolspeed = 1
-	usesound = 'sound/items/Deconstruct.ogg'
+	usesound = 'sound/items/deconstruct.ogg'
 
-/obj/item/mounted/frame/attackby(obj/item/weapon/W, mob/user)
+/obj/item/mounted/frame/attackby(obj/item/W, mob/user)
 	..()
-	if(istype(W, /obj/item/weapon/wrench) && sheets_refunded)
+	if(istype(W, /obj/item/wrench) && sheets_refunded)
 		//new /obj/item/stack/sheet/metal( get_turf(src.loc), sheets_refunded )
 		var/obj/item/stack/sheet/metal/M = new /obj/item/stack/sheet/metal(get_turf(src))
 		M.amount = sheets_refunded

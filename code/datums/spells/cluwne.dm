@@ -1,7 +1,7 @@
 /obj/effect/proc_holder/spell/targeted/touch/cluwne
 	name = "Curse of the Cluwne"
 	desc = "Turns the target into a fat and cursed monstrosity of a clown."
-	hand_path = /obj/item/weapon/melee/touch_attack/cluwne
+	hand_path = /obj/item/melee/touch_attack/cluwne
 
 	school = "transmutation"
 
@@ -18,7 +18,7 @@
 		idiot_brain.insert(src, make_cluwne = 0)
 		idiot_brain.dna = dna.Clone()
 	setBrainLoss(80)
-	nutrition = 9000
+	set_nutrition(9000)
 	overeatduration = 9000
 	Confused(30)
 	if(mind)
@@ -44,7 +44,7 @@
 /mob/living/carbon/human/proc/makeAntiCluwne()
 	to_chat(src, "<span class='danger'>You don't feel very funny.</span>")
 	adjustBrainLoss(-120)
-	nutrition = NUTRITION_LEVEL_STARVING
+	set_nutrition(NUTRITION_LEVEL_STARVING)
 	overeatduration = 0
 	SetConfused(0)
 	SetJitter(0)

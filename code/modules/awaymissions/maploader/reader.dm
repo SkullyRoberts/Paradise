@@ -57,8 +57,6 @@ var/global/dmm_suite/preloader/_preloader = new
 	var/list/grid_models = list()
 	var/key_len = 0
 
-
-
 	var/dmm_suite/loaded_map/LM = new
 	// This try-catch is used as a budget "Finally" clause, as the dirt count
 	// needs to be reset
@@ -128,7 +126,6 @@ var/global/dmm_suite/preloader/_preloader = new
 					bounds[MAP_MAXY] = max(bounds[MAP_MAXY], min(ycrd, world.maxy))
 
 				var/maxx = xcrdStart
-				log_debug("[xcrdStart]")
 				if(measureOnly)
 					for(var/line in gridLines)
 						maxx = max(maxx, xcrdStart + length(line) / key_len - 1)
@@ -179,7 +176,7 @@ var/global/dmm_suite/preloader/_preloader = new
 			for(var/t in block(locate(bounds[MAP_MINX], bounds[MAP_MINY], bounds[MAP_MINZ]), locate(bounds[MAP_MAXX], bounds[MAP_MAXY], bounds[MAP_MAXZ])))
 				var/turf/T = t
 				//we do this after we load everything in. if we don't; we'll have weird atmos bugs regarding atmos adjacent turfs
-				T.AfterChange(1,keep_cabling = TRUE)
+				T.AfterChange(1, keep_cabling = TRUE)
 		return bounds
 
 /**
@@ -324,7 +321,7 @@ var/global/dmm_suite/preloader/_preloader = new
 	var/turf/T = locate(x,y,z)
 	if(T)
 		if(ispath(path, /turf))
-			T.ChangeTurf(path, 1, 0)
+			T.ChangeTurf(path, defer_change = TRUE, keep_icon = FALSE)
 			instance = T
 		else if(ispath(path, /area))
 
@@ -421,13 +418,6 @@ var/global/dmm_suite/preloader/_preloader = new
 	while(position != 0)
 
 	return to_return
-
-//atom creation method that preloads variables at creation
-/atom/New()
-	if(use_preloader && (src.type == _preloader.target_path))//in case the instanciated atom is creating other atoms in New()
-		_preloader.load(src)
-
-	. = ..()
 
 /dmm_suite/Destroy()
 	..()

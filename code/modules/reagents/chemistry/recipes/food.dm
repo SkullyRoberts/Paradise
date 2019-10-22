@@ -10,7 +10,7 @@
 /datum/chemical_reaction/tofu/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/tofu(location)
+		new /obj/item/reagent_containers/food/snacks/tofu(location)
 
 /datum/chemical_reaction/chocolate_bar
 	name = "Chocolate Bar"
@@ -22,7 +22,7 @@
 /datum/chemical_reaction/chocolate_bar/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/chocolatebar(location)
+		new /obj/item/reagent_containers/food/snacks/chocolatebar(location)
 
 /datum/chemical_reaction/chocolate_bar2
 	name = "Chocolate Bar"
@@ -34,7 +34,7 @@
 /datum/chemical_reaction/chocolate_bar2/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/chocolatebar(location)
+		new /obj/item/reagent_containers/food/snacks/chocolatebar(location)
 
 /datum/chemical_reaction/soysauce
 	name = "Soy Sauce"
@@ -54,7 +54,7 @@
 /datum/chemical_reaction/cheesewheel/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/sliceable/cheesewheel(location)
+		new /obj/item/reagent_containers/food/snacks/sliceable/cheesewheel(location)
 
 /datum/chemical_reaction/syntiflesh
 	name = "Syntiflesh"
@@ -66,7 +66,7 @@
 /datum/chemical_reaction/syntiflesh/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/meat/syntiflesh(location)
+		new /obj/item/reagent_containers/food/snacks/meat/syntiflesh(location)
 
 /datum/chemical_reaction/hot_ramen
 	name = "Hot Ramen"
@@ -99,8 +99,24 @@
 
 /datum/chemical_reaction/dough/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
-	for(var/i = 1, i <= created_volume, i++)
-		new /obj/item/weapon/reagent_containers/food/snacks/dough(location)
+	for(var/i in 1 to created_volume)
+		new /obj/item/reagent_containers/food/snacks/dough(location)
+
+///Cookies by Ume
+
+/datum/chemical_reaction/cookiedough
+	name = "Dough"
+	id = "dough"
+	result = null
+	required_reagents = list("milk" = 10, "flour" = 10, "sugar" = 5)
+	result_amount = 1
+	mix_message = "The ingredients form a dough. It smells sweet and yummy."
+
+/datum/chemical_reaction/cookiedough/on_reaction(datum/reagents/holder, created_volume)
+	var/location = get_turf(holder.my_atom)
+	for(var/i in 1 to created_volume)
+		new /obj/item/reagent_containers/food/snacks/cookiedough(location)
+
 
 /datum/chemical_reaction/corn_syrup
 	name = "corn_syrup"
@@ -108,7 +124,7 @@
 	result = "corn_syrup"
 	required_reagents = list("corn_starch" = 1, "sacid" = 1)
 	result_amount = 2
-	min_temp = 374
+	min_temp = T0C + 100
 	mix_message = "The mixture forms a viscous, clear fluid!"
 
 /datum/chemical_reaction/vhfcs
@@ -160,7 +176,7 @@
 	result = "hydrogenated_soybeanoil"
 	required_reagents = list("soybeanoil" = 1, "hydrogen" = 1)
 	result_amount = 2
-	min_temp = 520
+	min_temp = T0C + 250
 	mix_message = "The mixture emits a burnt, oily smell."
 
 /datum/chemical_reaction/meatslurry
@@ -178,7 +194,7 @@
 	result = "gravy"
 	required_reagents = list("porktonium" = 1, "corn_starch" = 1, "milk" = 1)
 	result_amount = 3
-	min_temp = 374
+	min_temp = T0C + 100
 	mix_message = "The substance thickens and takes on a meaty odor."
 
 /datum/chemical_reaction/beff
@@ -205,7 +221,7 @@
 	result = "enzyme"
 	required_reagents = list("vomit" = 1, "sugar" = 1)
 	result_amount = 2
-	min_temp = 750
+	min_temp = T0C + 480
 	mix_message = "The mixture emits a horrible smell as you heat up the contents. Luckily, enzymes don't stink."
 	mix_sound = 'sound/goonstation/misc/fuse.ogg'
 
@@ -215,6 +231,6 @@
 	result = "enzyme"
 	required_reagents = list("green_vomit" = 1, "sugar" = 1)
 	result_amount = 2
-	min_temp = 750
+	min_temp = T0C + 480
 	mix_message = "The mixture emits a horrible smell as you heat up the contents. Luckily, enzymes don't stink."
 	mix_sound = 'sound/goonstation/misc/fuse.ogg'

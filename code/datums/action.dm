@@ -11,10 +11,10 @@
 	var/check_flags = 0
 	var/processing = 0
 	var/obj/screen/movable/action_button/button = null
-	var/button_icon = 'icons/mob/actions.dmi'
+	var/button_icon = 'icons/mob/actions/actions.dmi'
 	var/background_icon_state = "bg_default"
 
-	var/icon_icon = 'icons/mob/actions.dmi'
+	var/icon_icon = 'icons/mob/actions/actions.dmi'
 	var/button_icon_state = "default"
 	var/mob/owner
 
@@ -23,6 +23,8 @@
 	button = new
 	button.linked_action = src
 	button.name = name
+	if(desc)
+		button.desc = desc
 
 /datum/action/Destroy()
 	if(owner)
@@ -41,15 +43,19 @@
 	M.actions += src
 	if(M.client)
 		M.client.screen += button
+		button.locked = TRUE
 	M.update_action_buttons()
 
 /datum/action/proc/Remove(mob/M)
+	owner = null
+	if(!M)
+		return
 	if(M.client)
 		M.client.screen -= button
 	button.moved = FALSE //so the button appears in its normal position when given to another owner.
+	button.locked = FALSE
 	M.actions -= src
 	M.update_action_buttons()
-	owner = null
 
 /datum/action/proc/Trigger()
 	if(!IsAvailable())
@@ -80,6 +86,7 @@
 	if(button)
 		button.icon = button_icon
 		button.icon_state = background_icon_state
+		button.desc = desc
 
 		ApplyIcon(button)
 
@@ -101,37 +108,45 @@
 //Presets for item actions
 /datum/action/item_action
 	check_flags = AB_CHECK_RESTRAINED|AB_CHECK_STUNNED|AB_CHECK_LYING|AB_CHECK_CONSCIOUS
+	var/use_itemicon = TRUE
 
-/datum/action/item_action/New(Target)
+/datum/action/item_action/New(Target, custom_icon, custom_icon_state)
 	..()
 	var/obj/item/I = target
 	I.actions += src
+	if(custom_icon && custom_icon_state)
+		use_itemicon = FALSE
+		icon_icon = custom_icon
+		button_icon_state = custom_icon_state
 
 /datum/action/item_action/Destroy()
 	var/obj/item/I = target
 	I.actions -= src
 	return ..()
 
-/datum/action/item_action/Trigger()
+/datum/action/item_action/Trigger(attack_self = TRUE) //Maybe we don't want to click the thing itself
 	if(!..())
 		return 0
-	if(target)
+	if(target && attack_self)
 		var/obj/item/I = target
 		I.ui_action_click(owner, type)
 	return 1
 
 /datum/action/item_action/ApplyIcon(obj/screen/movable/action_button/current_button)
-	current_button.overlays.Cut()
-	if(target)
-		var/obj/item/I = target
-		var/old_layer = I.layer
-		var/old_plane = I.plane
-		I.layer = 21
-		I.plane = HUD_PLANE
-		current_button.overlays += I
-		I.layer = old_layer
-		I.plane = old_plane
-
+	if(use_itemicon)
+		current_button.overlays.Cut()
+		if(target)
+			var/obj/item/I = target
+			var/old_layer = I.layer
+			var/old_plane = I.plane
+			I.layer = FLOAT_LAYER //AAAH
+			I.plane = FLOAT_PLANE //^ what that guy said
+			current_button.cut_overlays()
+			current_button.add_overlay(I)
+			I.layer = old_layer
+			I.plane = old_plane
+	else
+		..()
 /datum/action/item_action/toggle_light
 	name = "Toggle Light"
 
@@ -181,6 +196,14 @@
 /datum/action/item_action/toggle_helmet_light
 	name = "Toggle Helmet Light"
 
+/datum/action/item_action/toggle_welding_screen/plasmaman
+	name = "Toggle Welding Screen"
+
+/datum/action/item_action/toggle_welding_screen/plasmaman/Trigger()
+	var/obj/item/clothing/head/helmet/space/plasmaman/H = target
+	if(istype(H))
+		H.toggle_welding_screen(owner)
+
 /datum/action/item_action/toggle_helmet_mode
 	name = "Toggle Helmet Mode"
 
@@ -189,7 +212,7 @@
 
 /datum/action/item_action/toggle_unfriendly_fire
 	name = "Toggle Friendly Fire \[ON\]"
-	desc = "Toggles if the staff causes friendly fire."
+	desc = "Toggles if the club's blasts cause friendly fire."
 	button_icon_state = "vortex_ff_on"
 
 /datum/action/item_action/toggle_unfriendly_fire/Trigger()
@@ -197,8 +220,8 @@
 		UpdateButtonIcon()
 
 /datum/action/item_action/toggle_unfriendly_fire/UpdateButtonIcon()
-	if(istype(target, /obj/item/weapon/hierophant_staff))
-		var/obj/item/weapon/hierophant_staff/H = target
+	if(istype(target, /obj/item/hierophant_club))
+		var/obj/item/hierophant_club/H = target
 		if(H.friendly_fire_check)
 			button_icon_state = "vortex_ff_off"
 			name = "Toggle Friendly Fire \[OFF\]"
@@ -214,8 +237,8 @@
 	desc = "Change the type of instrument your synthesizer is playing as."
 
 /datum/action/item_action/synthswitch/Trigger()
-	if(istype(target, /obj/item/device/instrument/piano_synth))
-		var/obj/item/device/instrument/piano_synth/synth = target
+	if(istype(target, /obj/item/instrument/piano_synth))
+		var/obj/item/instrument/piano_synth/synth = target
 		var/chosen = input("Choose the type of instrument you want to use", "Instrument Selection", "piano") as null|anything in synth.insTypes
 		if(!synth.insTypes[chosen])
 			return
@@ -224,12 +247,12 @@
 
 /datum/action/item_action/vortex_recall
 	name = "Vortex Recall"
-	desc = "Recall yourself, and anyone nearby, to an attuned hierophant rune at any time.<br>If no such rune exists, will produce a rune at your location."
+	desc = "Recall yourself, and anyone nearby, to an attuned hierophant beacon at any time.<br>If the beacon is still attached, will detach it."
 	button_icon_state = "vortex_recall"
 
 /datum/action/item_action/vortex_recall/IsAvailable()
-	if(istype(target, /obj/item/weapon/hierophant_staff))
-		var/obj/item/weapon/hierophant_staff/H = target
+	if(istype(target, /obj/item/hierophant_club))
+		var/obj/item/hierophant_club/H = target
 		if(H.teleporting)
 			return 0
 	return ..()
@@ -311,6 +334,14 @@
 /datum/action/item_action/toggle_helmet
 	name = "Toggle Helmet"
 
+/datum/action/item_action/remove_tape
+	name = "Remove Duct Tape"
+
+/datum/action/item_action/remove_tape/Trigger(attack_self = FALSE)
+	if(..())
+		GET_COMPONENT_FROM(DT, /datum/component/ducttape, target)
+		DT.remove_tape(target, usr)
+
 /datum/action/item_action/toggle_jetpack
 	name = "Toggle Jetpack"
 
@@ -318,7 +349,7 @@
 	name = "Toggle Jetpack Stabilization"
 
 /datum/action/item_action/jetpack_stabilization/IsAvailable()
-	var/obj/item/weapon/tank/jetpack/J = target
+	var/obj/item/tank/jetpack/J = target
 	if(!istype(J) || !J.on)
 		return 0
 	return ..()
@@ -355,8 +386,8 @@
 	desc = "Use the instrument specified"
 
 /datum/action/item_action/instrument/Trigger()
-	if(istype(target, /obj/item/device/instrument))
-		var/obj/item/device/instrument/I = target
+	if(istype(target, /obj/item/instrument))
+		var/obj/item/instrument/I = target
 		I.interact(usr)
 		return
 	return ..()
@@ -364,6 +395,13 @@
 
 /datum/action/item_action/remove_badge
 	name = "Remove Holobadge"
+
+// Jump boots
+/datum/action/item_action/bhop
+	name = "Activate Jump Boots"
+	desc = "Activates the jump boot's internal propulsion system, allowing the user to dash over 4-wide gaps."
+	icon_icon = 'icons/mob/actions/actions.dmi'
+	button_icon_state = "jetboot"
 
 ///prset for organ actions
 /datum/action/item_action/organ_action
@@ -386,6 +424,19 @@
 	..()
 	name = "Use [target.name]"
 	button.name = name
+
+/datum/action/item_action/voice_changer/toggle
+	name = "Toggle Voice Changer"
+
+/datum/action/item_action/voice_changer/voice
+	name = "Set Voice"
+
+/datum/action/item_action/voice_changer/voice/Trigger()
+	if(!IsAvailable())
+		return FALSE
+
+	var/obj/item/voice_changer/V = target
+	V.set_voice(usr)
 
 // for clothing accessories like holsters
 /datum/action/item_action/accessory
@@ -418,6 +469,7 @@
 	var/obj/effect/proc_holder/spell/S = target
 	S.action = src
 	name = S.name
+	desc = S.desc
 	button_icon = S.action_icon
 	button_icon_state = S.action_icon_state
 	background_icon_state = S.action_background_icon_state
@@ -440,6 +492,9 @@
 	if(!target)
 		return 0
 	var/obj/effect/proc_holder/spell/spell = target
+
+	if(spell.special_availability_check)
+		return 1
 
 	if(owner)
 		return spell.can_cast(owner)

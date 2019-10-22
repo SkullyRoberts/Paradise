@@ -1,9 +1,10 @@
 /obj/machinery/atmospherics/trinary
 	dir = SOUTH
 	initialize_directions = SOUTH|NORTH|WEST
-	use_power = 1
+	use_power = IDLE_POWER_USE
 
 	var/on = 0
+	layer = GAS_FILTER_LAYER
 
 	var/datum/gas_mixture/air1
 	var/datum/gas_mixture/air2
@@ -66,7 +67,7 @@
 		nullifyPipenet(parent3)
 	return ..()
 
-/obj/machinery/atmospherics/trinary/initialize()
+/obj/machinery/atmospherics/trinary/atmos_init()
 	..()
 	//Mixer:
 	//1 and 2 is input
@@ -104,7 +105,7 @@
 	update_icon()
 	update_underlays()
 
-/obj/machinery/atmospherics/trinary/build_network()
+/obj/machinery/atmospherics/trinary/build_network(remove_deferral = FALSE)
 	if(!parent1)
 		parent1 = new /datum/pipeline()
 		parent1.build_pipeline(src)
@@ -116,6 +117,7 @@
 	if(!parent3)
 		parent3 = new /datum/pipeline()
 		parent3.build_pipeline(src)
+	..()
 
 /obj/machinery/atmospherics/trinary/disconnect(obj/machinery/atmospherics/reference)
 	if(reference == node1)

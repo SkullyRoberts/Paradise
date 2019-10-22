@@ -5,7 +5,7 @@
 		to_chat(usr, "<span class='danger'>Failed to establish database connection.</span>")
 		return
 	if(!target_ckey)
-		var/new_ckey = ckey(input(usr,"Who would you like to add a note for?","Enter a ckey",null) as text|null)
+		var/new_ckey = ckey(clean_input("Who would you like to add a note for?","Enter a ckey",null))
 		if(!new_ckey)
 			return
 		new_ckey = ckey(new_ckey)
@@ -121,7 +121,7 @@
 	var/ruler
 	ruler = "<hr style='background:#000000; border:0; height:3px'>"
 	navbar = "<a href='?_src_=holder;nonalpha=1'>\[All\]</a>|<a href='?_src_=holder;nonalpha=2'>\[#\]</a>"
-	for(var/letter in alphabet)
+	for(var/letter in GLOB.alphabet)
 		navbar += "|<a href='?_src_=holder;shownote=[letter]'>\[[letter]\]</a>"
 	navbar += "<br><form method='GET' name='search' action='?'>\
 	<input type='hidden' name='_src_' value='holder'>\

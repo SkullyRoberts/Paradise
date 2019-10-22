@@ -3,27 +3,34 @@
 	desc = "Used to monitor power levels across the station."
 	icon_screen = "power"
 	icon_keyboard = "power_key"
-	use_power = 2
+	use_power = ACTIVE_POWER_USE
 	idle_power_usage = 20
 	active_power_usage = 80
 	light_color = LIGHT_COLOR_ORANGE
-	circuit = /obj/item/weapon/circuitboard/powermonitor
+	circuit = /obj/item/circuitboard/powermonitor
 	var/datum/powernet/powernet = null
 	var/datum/nano_module/power_monitor/power_monitor
+	var/is_secret_monitor = FALSE
+
+/obj/machinery/computer/monitor/secret //Hides the power monitor (such as ones on ruins & CentCom) from PDA's to prevent metagaming.
+	name = "outdated power monitoring console"
+	desc = "It monitors power levels across the local powernet."
+	circuit = /obj/item/circuitboard/powermonitor/secret
+	is_secret_monitor = TRUE
 
 /obj/machinery/computer/monitor/New()
 	..()
-	power_monitors += src
-	power_monitors = sortAtom(power_monitors)
+	GLOB.power_monitors += src
+	GLOB.power_monitors = sortAtom(GLOB.power_monitors)
 	power_monitor = new(src)
 
-/obj/machinery/computer/monitor/initialize()
+/obj/machinery/computer/monitor/Initialize()
 	..()
 	powermonitor_repository.update_cache()
 	powernet = find_powernet()
 
 /obj/machinery/computer/monitor/Destroy()
-	power_monitors -= src
+	GLOB.power_monitors -= src
 	powermonitor_repository.update_cache()
 	QDEL_NULL(power_monitor)
 	return ..()
@@ -38,7 +45,7 @@
 	if(isturf(T))
 		attached = locate() in T
 	if(attached)
-		return attached.get_powernet()
+		return attached.powernet
 
 /obj/machinery/computer/monitor/attack_ai(mob/user)
 	attack_hand(user)

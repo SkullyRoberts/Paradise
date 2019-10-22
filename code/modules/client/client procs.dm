@@ -9,6 +9,7 @@
 #define MIN_CLIENT_VERSION	0		//Just an ambiguously low version for now, I don't want to suddenly stop people playing.
 									//I would just like the code ready should it ever need to be used.
 #define SUGGESTED_CLIENT_VERSION	511		// only integers (e.g: 510, 511) useful here. Does not properly handle minor versions (e.g: 510.58, 511.848)
+#define SSD_WARNING_TIMER 30 // cycles, not seconds, so 30=60s
 
 	/*
 	When somebody clicks a link in game, this Topic is called first.
@@ -65,7 +66,7 @@
 
 	//search the href for script injection
 	if( findtext(href,"<script",1,0) )
-		log_to_dd("Attempted use of scripts within a topic call, by [src]")
+		log_world("Attempted use of scripts within a topic call, by [src]")
 		log_runtime(EXCEPTION("Attempted use of scripts within a topic call, by [src]"), src)
 		message_admins("Attempted use of scripts within a topic call, by [src]")
 		return
@@ -73,11 +74,11 @@
 	//Admin PM
 	if(href_list["priv_msg"])
 		var/client/C = locate(href_list["priv_msg"])
-		if(ismob(C)) 		//Old stuff can feed-in mobs instead of clients
-			var/mob/M = C
-			C = M.client
+
 		if(!C) // Might be a stealthmin ID, so pass it in straight
 			C = href_list["priv_msg"]
+		else if(C.UID() != href_list["priv_msg"])
+			C = null // 404 client not found. Let cmd_admin_pm handle the error
 		cmd_admin_pm(C, null, href_list["type"])
 		return
 
@@ -94,8 +95,8 @@
 
 
 	//Logs all hrefs
-	if(config && config.log_hrefs && href_logfile)
-		to_chat(href_logfile, "<small>[time2text(world.timeofday,"hh:mm")] [src] (usr:[usr])</small> || [hsrc ? "[hsrc] " : ""][href]<br>")
+	if(config && config.log_hrefs)
+		log_href("[src] (usr:[usr]\[[COORD(usr)]\]) : [hsrc ? "[hsrc] " : ""][href]")
 
 	if(href_list["karmashop"])
 		if(config.disable_karma)
@@ -109,136 +110,44 @@
 			if("shop")
 				if(href_list["KarmaBuy"])
 					var/karma=verify_karma()
+					if(isnull(karma)) //Doesn't display anything if karma database is down.
+						return
 					switch(href_list["KarmaBuy"])
 						if("1")
-							if(karma <5)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Barber?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Barber",5)
-								return
+							karma_purchase(karma,5,"job","Barber")
 						if("2")
-							if(karma <5)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Brig Physician?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Brig Physician",5)
-								return
+							karma_purchase(karma,5,"job","Brig Physician")
 						if("3")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Nanotrasen Representative?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Nanotrasen Representative",30)
-								return
+							karma_purchase(karma,30,"job","Nanotrasen Representative")
 						if("5")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Blueshield?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Blueshield",30)
-								return
+							karma_purchase(karma,30,"job","Blueshield")
 						if("6")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Mechanic?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Mechanic",30)
-								return
+							karma_purchase(karma,30,"job","Mechanic")
 						if("7")
-							if(karma <45)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Magistrate?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Magistrate",45)
-								return
+							karma_purchase(karma,45,"job","Magistrate")
 						if("9")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Security Pod Pilot?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_job_unlock("Security Pod Pilot",30)
-								return
+							karma_purchase(karma,30,"job","Security Pod Pilot")
+					return
 				if(href_list["KarmaBuy2"])
 					var/karma=verify_karma()
+					if(isnull(karma)) //Doesn't display anything if karma database is down.
+						return
 					switch(href_list["KarmaBuy2"])
 						if("1")
-							if(karma <15)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Machine People?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Machine",15)
-								return
+							karma_purchase(karma,15,"species","Machine People","Machine")
 						if("2")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Kidan?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Kidan",30)
-								return
+							karma_purchase(karma,30,"species","Kidan")
 						if("3")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Grey?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Grey",30)
-								return
+							karma_purchase(karma,30,"species","Grey")
 						if("4")
-							if(karma <45)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Vox?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Vox",45)
-								return
+							karma_purchase(karma,45,"species","Vox")
 						if("5")
-							if(karma <45)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Slime People?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Slime People",45)
-								return
+							karma_purchase(karma,45,"species","Slime People")
 						if("6")
-							if(karma <100)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Plasmaman?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Plasmaman",100)
-								return
+							karma_purchase(karma,45,"species","Plasmaman")
 						if("7")
-							if(karma <30)
-								to_chat(usr, "You do not have enough karma!")
-								return
-							else
-								if(alert("Are you sure you want to unlock Drask?", "Confirmation", "No", "Yes") != "Yes")
-									return
-								DB_species_unlock("Drask",30)
-								return
+							karma_purchase(karma,30,"species","Drask")
+					return
 				if(href_list["KarmaRefund"])
 					var/type = href_list["KarmaRefundType"]
 					var/job = href_list["KarmaRefund"]
@@ -319,7 +228,11 @@
 						vote_on_poll(pollid, optionid, 1)
 		src << browse(null, "window=playerpoll")
 		handle_player_polling()
-
+	if(href_list["ssdwarning"])
+		ssd_warning_acknowledged = TRUE
+		to_chat(src, "<span class='notice'>SSD warning acknowledged.</span>")
+	if(href_list["link_forum_account"])
+		link_forum_account()
 	switch(href_list["action"])
 		if("openLink")
 			src << link(href_list["link"])
@@ -384,49 +297,47 @@
 		return null
 	if(byond_version < MIN_CLIENT_VERSION) // Too out of date to play at all. Unfortunately, we can't send them a message here.
 		return null
+	if(byond_build < config.minimum_client_build)
+		alert(src, "You are using a byond build which is not supported by this server. Please use a build version of atleast [config.minimum_client_build].", "Incorrect build", "OK")
+		qdel(src)
+		return
 	if(byond_version < SUGGESTED_CLIENT_VERSION) // Update is suggested, but not required.
 		to_chat(src,"<span class='userdanger'>Your BYOND client (v: [byond_version]) is out of date. This can cause glitches. We highly suggest you download the latest client from http://www.byond.com/ before playing. </span>")
 
 	if(IsGuestKey(key))
 		alert(src,"This server doesn't allow guest accounts to play. Please go to http://www.byond.com/ and register for a key.","Guest","OK")
-		del(src)
+		qdel(src)
 		return
-
-	// Change the way they should download resources.
-	if(config.resource_urls)
-		preload_rsc = pick(config.resource_urls)
-	else preload_rsc = 1 // If config.resource_urls is not set, preload like normal.
 
 	to_chat(src, "<span class='warning'>If the title screen is black, resources are still downloading. Please be patient until the title screen appears.</span>")
 
 
-	clients += src
-	directory[ckey] = src
-
+	GLOB.clients += src
+	GLOB.directory[ckey] = src
 	//Admin Authorisation
+	// Automatically makes localhost connection an admin
+	if(!config.disable_localhost_admin)
+		if(is_connecting_from_localhost())
+			new /datum/admins("!LOCALHOST!", R_HOST, ckey) // Makes localhost rank
 	holder = admin_datums[ckey]
 	if(holder)
-		admins += src
+		GLOB.admins += src
 		holder.owner = src
-
-	donator_check()
 
 	//preferences datum - also holds some persistant data for the client (because we may as well keep these datums to a minimum)
 	prefs = preferences_datums[ckey]
 	if(!prefs)
 		prefs = new /datum/preferences(src)
 		preferences_datums[ckey] = prefs
+	else
+		prefs.parent = src
 	prefs.last_ip = address				//these are gonna be used for banning
 	prefs.last_id = computer_id			//these are gonna be used for banning
+	if(world.byond_version >= 511 && byond_version >= 511 && prefs.clientfps)
+		fps = prefs.clientfps
 
 	spawn() // Goonchat does some non-instant checks in start()
 		chatOutput.start()
-
-	if(custom_event_msg && custom_event_msg != "")
-		to_chat(src, "<h1 class='alert'>Custom Event</h1>")
-		to_chat(src, "<h2 class='alert'>A custom event is taking place. OOC Info:</h2>")
-		to_chat(src, "<span class='alert'>[html_encode(custom_event_msg)]</span>")
-		to_chat(src, "<br>")
 
 	if( (world.address == address || !address) && !host )
 		host = key
@@ -436,8 +347,6 @@
 		on_holder_add()
 		add_admin_verbs()
 		admin_memo_output("Show", 0, 1)
-		if(custom_event_admin_msg && custom_event_admin_msg != "" && check_rights(R_EVENT))
-			cmd_view_custom_event_info()
 
 	// Forcibly enable hardware-accelerated graphics, as we need them for the lighting overlays.
 	// (but turn them off first, since sometimes BYOND doesn't turn them on properly otherwise)
@@ -450,31 +359,70 @@
 
 	. = ..()	//calls mob.Login()
 
+
 	if(ckey in clientmessages)
 		for(var/message in clientmessages[ckey])
 			to_chat(src, message)
 		clientmessages.Remove(ckey)
 
+	if(SSinput.initialized)
+		set_macros()
 
+	donator_check()
+	check_ip_intel()
 	send_resources()
+
+	if(prefs.toggles & UI_DARKMODE) // activates dark mode if its flagged. -AA07
+		if(establish_db_connection())
+			activate_darkmode()
 
 	if(prefs.lastchangelog != changelog_hash) //bolds the changelog button on the interface so we know there are updates. -CP
 		if(establish_db_connection())
-			winset(src, "rpane.changelog", "background-color=#f4aa94;font-style=bold")
 			to_chat(src, "<span class='info'>Changelog has changed since your last visit.</span>")
+			update_changelog_button()
 
-	if(!void)
-		void = new()
+	if(prefs.toggles & DISABLE_KARMA) // activates if karma is disabled
+		if(establish_db_connection())
+			to_chat(src,"<span class='notice'>You have disabled karma gains.") // reminds those who have it disabled
+	else
+		if(establish_db_connection())
+			to_chat(src,"<span class='notice'>You have enabled karma gains.")
 
-	screen += void
+	generate_clickcatcher()
+	apply_clickcatcher()
+
+	check_forum_link()
+
+	if(custom_event_msg && custom_event_msg != "")
+		to_chat(src, "<h1 class='alert'>Custom Event</h1>")
+		to_chat(src, "<h2 class='alert'>A custom event is taking place. OOC Info:</h2>")
+		to_chat(src, "<span class='alert'>[html_encode(custom_event_msg)]</span>")
+		to_chat(src, "<br>")
 
 	if(!winexists(src, "asset_cache_browser")) // The client is using a custom skin, tell them.
 		to_chat(src, "<span class='warning'>Unable to access asset cache browser, if you are using a custom skin file, please allow DS to download the updated version, if you are not, then make a bug report. This is not a critical issue but can cause issues with resource downloading, as it is impossible to know when extra resources arrived to you.</span>")
 
-
 	//This is down here because of the browse() calls in tooltip/New()
 	if(!tooltips)
 		tooltips = new /datum/tooltip(src)
+
+	Master.UpdateTickRate()
+
+	// Check total playercount
+	var/playercount = 0
+	for(var/mob/M in GLOB.player_list)
+		if(M.client)
+			playercount += 1
+	
+	if(playercount >= 150 && GLOB.panic_bunker_enabled == 0)
+		GLOB.panic_bunker_enabled = 1
+		message_admins("Panic bunker has been automatically enabled due to playercount surpassing 150")
+
+/client/proc/is_connecting_from_localhost()
+	var/localhost_addresses = list("127.0.0.1", "::1") // Adresses
+	if(!isnull(address) && address in localhost_addresses)
+		return TRUE
+	return FALSE
 
 //////////////
 //DISCONNECT//
@@ -482,9 +430,13 @@
 /client/Del()
 	if(holder)
 		holder.owner = null
-		admins -= src
-	directory -= ckey
-	clients -= src
+		GLOB.admins -= src
+	GLOB.directory -= ckey
+	GLOB.clients -= src
+	if(movingmob)
+		movingmob.client_mobs_in_contents -= mob
+		UNSETEMPTY(movingmob.client_mobs_in_contents)
+	Master.UpdateTickRate()
 	return ..()
 
 
@@ -496,16 +448,26 @@
 	if(!dbcon.IsConnected())
 		return
 
+	if(check_rights(R_ADMIN, 0, mob)) // Yes, the mob is required, regardless of other examples in this file, it won't work otherwise
+		donator_level = DONATOR_LEVEL_MAX
+		donor_loadout_points()
+		return
+
 	//Donator stuff.
 	var/DBQuery/query_donor_select = dbcon.NewQuery("SELECT ckey, tier, active FROM `[format_table_name("donators")]` WHERE ckey = '[ckey]'")
 	query_donor_select.Execute()
 	while(query_donor_select.NextRow())
 		if(!text2num(query_donor_select.item[3]))
 			// Inactive donator.
-			donator_level = DONATOR_LEVEL_NONE
+			donator_level = 0
 			return
 		donator_level = text2num(query_donor_select.item[2])
+		donor_loadout_points()
 		break
+
+/client/proc/donor_loadout_points()
+	if(donator_level > 0 && prefs)
+		prefs.max_gear_slots = config.max_loadout_points + 5
 
 /client/proc/log_client_to_db(connectiontopic)
 	if(IsGuestKey(key))
@@ -554,7 +516,7 @@
 
 	//Log all the alts
 	if(related_accounts_cid.len)
-		log_access("Alts: [key_name(src)]:[jointext(related_accounts_cid, " - ")]")
+		log_admin("[key_name(src)] alts:[jointext(related_accounts_cid, " - ")]")
 
 
 	var/watchreason = check_watchlist(ckey)
@@ -584,6 +546,14 @@
 			message_admins("SQL ERROR during log_client_to_db (update). Error : \[[err]\]\n")
 	else
 		//New player!! Need to insert all the stuff
+
+		// Check new peeps for panic bunker
+		if(GLOB.panic_bunker_enabled)
+			message_admins("<span class='adminnotice'>Failed Login: [key] - New account attempting to connect during panic bunker</span>")
+			src << "Sorry but the server is currently not accepting connections from never before seen players. Please try again later."
+			del(src)
+			return // Dont insert or they can just go in again
+		
 		var/DBQuery/query_insert = dbcon.NewQuery("INSERT INTO [format_table_name("player")] (id, ckey, firstseen, lastseen, ip, computerid, lastadminrank) VALUES (null, '[ckey]', Now(), Now(), '[sql_ip]', '[sql_computerid]', '[sql_admin_rank]')")
 		if(!query_insert.Execute())
 			var/err = query_insert.ErrorMsg()
@@ -595,6 +565,81 @@
 	var/DBQuery/query_accesslog = dbcon.NewQuery("INSERT INTO `[format_table_name("connection_log")]`(`id`,`datetime`,`serverip`,`ckey`,`ip`,`computerid`) VALUES(null,Now(),'[serverip]','[ckey]','[sql_ip]','[sql_computerid]');")
 	query_accesslog.Execute()
 
+/client/proc/check_ip_intel()
+	set waitfor = 0 //we sleep when getting the intel, no need to hold up the client connection while we sleep
+	if(config.ipintel_email)
+		if(config.ipintel_maxplaytime && config.use_exp_tracking)
+			var/living_hours = get_exp_type_num(EXP_TYPE_LIVING) / 60
+			if(living_hours >= config.ipintel_maxplaytime)
+				return
+
+		if(is_connecting_from_localhost())
+			log_debug("check_ip_intel: skip check for player [key_name_admin(src)] connecting from localhost.")
+			return
+
+		if(vpn_whitelist_check(ckey))
+			log_debug("check_ip_intel: skip check for player [key_name_admin(src)] [address] on whitelist.")
+			return
+
+		var/datum/ipintel/res = get_ip_intel(address)
+		ip_intel = res.intel
+		verify_ip_intel()
+
+/client/proc/verify_ip_intel()
+	if(ip_intel >= config.ipintel_rating_bad)
+		var/detailsurl = config.ipintel_detailsurl ? "(<a href='[config.ipintel_detailsurl][address]'>IP Info</a>)" : ""
+		if(config.ipintel_whitelist)
+			spawn(40) // This is necessary because without it, they won't see the message, and addtimer cannot be used because the timer system may not have initialized yet
+				message_admins("<span class='adminnotice'>IPIntel: [key_name_admin(src)] on IP [address] was rejected. [detailsurl]</span>")
+				var/blockmsg = "<B>Error: proxy/VPN detected. Proxy/VPN use is not allowed here. Deactivate it before you reconnect.</B>"
+				if(config.banappeals)
+					blockmsg += "\nIf you are not actually using a proxy/VPN, or have no choice but to use one, request whitelisting at: [config.banappeals]"
+				to_chat(src, blockmsg)
+				qdel(src)
+		else
+			message_admins("<span class='adminnotice'>IPIntel: [key_name_admin(src)] on IP [address] is likely to be using a Proxy/VPN. [detailsurl]</span>")
+
+
+/client/proc/check_forum_link()
+	if(config.forum_link_url && prefs && !prefs.fuid)
+		to_chat(src, "<B>You do not have your forum account linked. <a href='?src=[UID()];link_forum_account=true'>LINK FORUM ACCOUNT</a></B>")
+
+/client/proc/create_oauth_token()
+	var/DBQuery/query_find_token = dbcon.NewQuery("SELECT token FROM [format_table_name("oauth_tokens")] WHERE ckey = '[ckey]' limit 1")
+	if(!query_find_token.Execute())
+		log_debug("create_oauth_token: failed db read")
+		return
+	if(query_find_token.NextRow())
+		return query_find_token.item[1]
+	var/tokenstr = md5("[ckey][rand()]")
+	var/DBQuery/query_insert_token = dbcon.NewQuery("INSERT INTO [format_table_name("oauth_tokens")] (ckey, token) VALUES('[ckey]','[tokenstr]')")
+	if(!query_insert_token.Execute())
+		return
+	return tokenstr
+
+/client/proc/link_forum_account()
+	if(IsGuestKey(key))
+		to_chat(src, "Guest keys cannot be linked.")
+		return
+	if(prefs && prefs.fuid)
+		to_chat(src, "Your forum account is already set.")
+		return
+	var/DBQuery/query_find_link = dbcon.NewQuery("SELECT fuid FROM [format_table_name("player")] WHERE ckey = '[ckey]' limit 1")
+	if(!query_find_link.Execute())
+		log_debug("link_forum_account: failed db read")
+		return
+	if(query_find_link.NextRow())
+		if(query_find_link.item[1])
+			to_chat(src, "Your forum account is already set. (" + query_find_link.item[1] + ")")
+			return
+	var/tokenid = create_oauth_token()
+	if(!tokenid)
+		to_chat(src, "link_forum_account: unable to create token")
+		return
+	var/url = "[config.forum_link_url][tokenid]"
+	to_chat(src, {"Now opening a windows to verify your information with the forums. If the window does not load, please go to: <a href="[url]">[url]</a>."})
+	src << link(url)
+	return
 
 #undef TOPIC_SPAM_DELAY
 #undef UPLOAD_LIMIT
@@ -636,7 +681,7 @@
 			sleep(10) // Since browse is non-instant, and kinda async
 
 			to_chat(src, "<pre class=\"system system\">you're a huge nerd. wakka wakka doodle doop nobody's ever gonna see this, the chat system shouldn't be online by this point</pre>")
-			del(src)
+			qdel(src)
 			return TRUE
 	else
 		if (!topic || !topic["token"] || !tokens[ckey] || topic["token"] != tokens[ckey])
@@ -647,7 +692,7 @@
 			tokens[ckey] = cid_check_reconnect()
 
 			sleep(10) //browse is queued, we don't want them to disconnect before getting the browse() command.
-			del(src)
+			qdel(src)
 			return TRUE
 		// We DO have their cached CID handy - compare it, now
 		if(oldcid != computer_id)
@@ -663,9 +708,9 @@
 				cidcheck_failedckeys[ckey] = TRUE
 				note_randomizer_user()
 
-			log_access("Failed Login: [key] [computer_id] [address] - CID randomizer confirmed (oldcid: [oldcid])")
+			log_adminwarn("Failed Login: [key] [computer_id] [address] - CID randomizer confirmed (oldcid: [oldcid])")
 
-			del(src)
+			qdel(src)
 			return TRUE
 		else
 			// don't shoot, I'm innocent
@@ -705,7 +750,7 @@
 /client/proc/cid_check_reconnect()
 	var/token = md5("[rand(0,9999)][world.time][rand(0,9999)][ckey][rand(0,9999)][address][rand(0,9999)][computer_id][rand(0,9999)]")
 	. = token
-	log_access("Failed Login: [key] [computer_id] [address] - CID randomizer check")
+	log_adminwarn("Failed Login: [key] [computer_id] [address] - CID randomizer check")
 	var/url = winget(src, null, "url")
 	//special javascript to make them reconnect under a new window.
 	src << browse("<a id='link' href='byond://[url]?token=[token]'>\
@@ -726,26 +771,137 @@
 
 //Send resources to the client.
 /client/proc/send_resources()
+	// Change the way they should download resources.
+	if(config.resource_urls)
+		preload_rsc = pick(config.resource_urls)
+	else 
+		preload_rsc = 1 // If config.resource_urls is not set, preload like normal.
 	// Most assets are now handled through global_cache.dm
 	getFiles(
 		'html/search.js', // Used in various non-NanoUI HTML windows for search functionality
 		'html/panels.css' // Used for styling certain panels, such as in the new player panel
 	)
-	spawn (10)
+	spawn (10) //removing this spawn causes all clients to not get verbs.
 		//Precache the client with all other assets slowly, so as to not block other browse() calls
-		getFilesSlow(src, asset_cache, register_asset = FALSE)
+		getFilesSlow(src, SSassets.preload, register_asset = FALSE)
 
 //For debugging purposes
 /client/proc/list_all_languages()
-	for(var/L in all_languages)
-		var/datum/language/lang = all_languages[L]
+	for(var/L in GLOB.all_languages)
+		var/datum/language/lang = GLOB.all_languages[L]
 		var/message = "[lang.name] : [lang.type]"
 		if(lang.flags & RESTRICTED)
 			message += " (RESTRICTED)"
 		to_chat(world, "[message]")
 
-/client/proc/colour_transition(var/list/colour_to = null, var/time = 10) //Call this with no parameters to reset to default.
-	animate(src, color=colour_to, time=time, easing=SINE_EASING)
+/client/proc/colour_transition(list/colour_to = null, time = 10) //Call this with no parameters to reset to default.
+	animate(src, color = colour_to, time = time, easing = SINE_EASING)
 
 /client/proc/on_varedit()
 	var_edited = TRUE
+
+/////////////////
+// DARKMODE UI //
+/////////////////
+// IF YOU CHANGE ANYTHING IN ACTIVATE, MAKE SURE IT HAS A DEACTIVATE METHOD, -AA07
+/client/proc/activate_darkmode()
+	///// BUTTONS /////
+	update_changelog_button()
+	/* Rpane */
+	winset(src, "rpane.textb", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "rpane.infob", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "rpane.wikib", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "rpane.forumb", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "rpane.rulesb", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "rpane.githubb", "background-color=#40628a;text-color=#FFFFFF")
+	/* Mainwindow */
+	winset(src, "mainwindow.saybutton", "background-color=#40628a;text-color=#FFFFFF")
+	winset(src, "mainwindow.mebutton", "background-color=#40628a;text-color=#FFFFFF")
+	///// UI ELEMENTS /////
+	/* Mainwindow */
+	winset(src, "mainwindow", "background-color=#272727")
+	winset(src, "mainwindow.mainvsplit", "background-color=#272727")
+	winset(src, "mainwindow.tooltip", "background-color=#272727")
+	/* Outputwindow */
+	winset(src, "outputwindow.browseroutput", "background-color=#272727")
+	/* Rpane */
+	winset(src, "rpane", "background-color=#272727")
+	winset(src, "rpane.rpanewindow", "background-color=#272727")
+	/* Browserwindow */
+	winset(src, "browserwindow", "background-color=#272727")
+	winset(src, "browserwindow.browser", "background-color=#272727")
+	/* Infowindow */
+	winset(src, "infowindow", "background-color=#272727;text-color=#FFFFFF")
+	winset(src, "infowindow.info", "background-color=#272727;text-color=#FFFFFF;highlight-color=#009900;tab-text-color=#FFFFFF;tab-background-color=#272727")
+	// NOTIFY USER
+	to_chat(src, "<span class='notice'>Darkmode Enabled</span>")
+
+/client/proc/deactivate_darkmode()
+	///// BUTTONS /////
+	update_changelog_button()
+	/* Rpane */
+	winset(src, "rpane.textb", "background-color=none;text-color=#000000")
+	winset(src, "rpane.infob", "background-color=none;text-color=#000000")
+	winset(src, "rpane.wikib", "background-color=none;text-color=#000000")
+	winset(src, "rpane.forumb", "background-color=none;text-color=#000000")
+	winset(src, "rpane.rulesb", "background-color=none;text-color=#000000")
+	winset(src, "rpane.githubb", "background-color=none;text-color=#000000")
+	/* Mainwindow */
+	winset(src, "mainwindow.saybutton", "background-color=none;text-color=#000000")
+	winset(src, "mainwindow.mebutton", "background-color=none;text-color=#000000")
+	///// UI ELEMENTS /////
+	/* Mainwindow */
+	winset(src, "mainwindow", "background-color=none")
+	winset(src, "mainwindow.mainvsplit", "background-color=none")
+	winset(src, "mainwindow.tooltip", "background-color=none")
+	/* Outputwindow */
+	winset(src, "outputwindow.browseroutput", "background-color=none")
+	/* Rpane */
+	winset(src, "rpane", "background-color=none")
+	winset(src, "rpane.rpanewindow", "background-color=none")
+	/* Browserwindow */
+	winset(src, "browserwindow", "background-color=none")
+	winset(src, "browserwindow.browser", "background-color=none")
+	/* Infowindow */
+	winset(src, "infowindow", "background-color=none;text-color=#000000")
+	winset(src, "infowindow.info", "background-color=none;text-color=#000000;highlight-color=#007700;tab-text-color=#000000;tab-background-color=none")
+	///// NOTIFY USER /////
+	to_chat(src, "<span class='notice'>Darkmode Disabled</span>") // what a sick fuck
+
+// Better changelog button handling
+/client/proc/update_changelog_button()
+	if(establish_db_connection())
+		if(prefs.lastchangelog != changelog_hash)
+			winset(src, "rpane.changelog", "background-color=#bb7700;text-color=#FFFFFF;font-style=bold")
+		else
+			if(prefs.toggles & UI_DARKMODE)
+				winset(src, "rpane.changelog", "background-color=#40628a;text-color=#FFFFFF")
+			else
+				winset(src, "rpane.changelog", "background-color=none;text-color=#000000")
+	else
+		if(prefs.toggles & UI_DARKMODE)
+			winset(src, "rpane.changelog", "background-color=#40628a;text-color=#FFFFFF")
+		else
+			winset(src, "rpane.changelog", "background-color=none;text-color=#000000")
+
+/client/proc/generate_clickcatcher()
+	if(!void)
+		void = new()
+		screen += void
+
+/client/proc/apply_clickcatcher()
+	generate_clickcatcher()
+	var/list/actualview = getviewsize(view)
+	void.UpdateGreed(actualview[1],actualview[2])
+
+/client/proc/send_ssd_warning(mob/M)
+	if(!config.ssd_warning)
+		return FALSE
+	if(ssd_warning_acknowledged)
+		return FALSE
+	if(M && M.player_logged < SSD_WARNING_TIMER)
+		return FALSE
+	to_chat(src, "Interacting with SSD players is against server rules unless you've ahelped first for permission. If you have, <a href='byond://?src=[UID()];ssdwarning=accepted'>confirm that</A> and proceed.")
+	return TRUE
+
+#undef SSD_WARNING_TIMER

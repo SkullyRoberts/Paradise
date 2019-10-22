@@ -58,10 +58,10 @@
 	if(ST_bot_left == null || ST_top_right == null)
 		log_runtime(EXCEPTION("One of the smoothing corners is bust"), src)
 
+	space_manager.remove_dirt(placement.z)
 	late_setup_level(
 		block(bot_left, top_right),
 		block(ST_bot_left, ST_top_right))
-	space_manager.remove_dirt(placement.z)
 
 	log_game("[name] loaded at [min_x],[min_y],[placement.z]")
 	return 1
@@ -114,7 +114,6 @@
 		preloadRuinTemplates()
 	preloadShelterTemplates()
 	preloadShuttleTemplates()
-	preloadVRTemplates()
 
 /proc/preloadRuinTemplates()
 	// Still supporting bans by filename
@@ -123,7 +122,7 @@
 		banned = generateMapList("config/spaceRuinBlacklist.txt")
 	else
 		banned = generateMapList("config/example/spaceRuinBlacklist.txt")
-	//banned += generateMapList("config/lavaRuinBlacklist.txt")
+	banned += generateMapList("config/lavaRuinBlacklist.txt")
 
 	for(var/item in subtypesof(/datum/map_template/ruin))
 		var/datum/map_template/ruin/ruin_type = item
@@ -138,10 +137,8 @@
 		map_templates[R.name] = R
 		ruins_templates[R.name] = R
 
-		/*
 		if(istype(R, /datum/map_template/ruin/lavaland))
 			lava_ruins_templates[R.name] = R
-		*/
 		if(istype(R, /datum/map_template/ruin/space))
 			space_ruins_templates[R.name] = R
 
@@ -165,14 +162,3 @@
 
 		shuttle_templates[S.shuttle_id] = S
 		map_templates[S.shuttle_id] = S
-
-/proc/preloadVRTemplates()
-	for(var/item in subtypesof(/datum/map_template/vr))
-		var/datum/map_template/vr/vr_type = item
-		if(!initial(vr_type.suffix))
-			continue
-
-		var/datum/map_template/vr/V = new vr_type()
-
-		vr_templates[V.id] = V
-		map_templates[V.id] = V

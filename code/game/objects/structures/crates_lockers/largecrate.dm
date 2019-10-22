@@ -4,7 +4,7 @@
 	icon = 'icons/obj/crates.dmi'
 	icon_state = "largecrate"
 	density = 1
-	var/obj/item/weapon/paper/manifest/manifest
+	var/obj/item/paper/manifest/manifest
 
 /obj/structure/largecrate/New()
 	..()
@@ -30,8 +30,8 @@
 		to_chat(user, "<span class='notice'>You need a crowbar to pry this open!</span>")
 		return
 
-/obj/structure/largecrate/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/crowbar))
+/obj/structure/largecrate/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/crowbar))
 		if(manifest)
 			manifest.forceMove(loc)
 			manifest = null
@@ -45,53 +45,55 @@
 							 "<span class='notice'>You pry open \the [src].</span>", \
 							 "<span class='notice'>You hear splitting wood.</span>")
 		qdel(src)
+	else if(user.a_intent != INTENT_HARM)
+		attack_hand(user)
 	else
-		return attack_hand(user)
+		return ..()
 
 /obj/structure/largecrate/mule
 
 /obj/structure/largecrate/lisa
 	icon_state = "lisacrate"
 
-/obj/structure/largecrate/lisa/attackby(obj/item/weapon/W as obj, mob/user as mob)	//ugly but oh well
-	if(istype(W, /obj/item/weapon/crowbar))
-		new /mob/living/simple_animal/pet/corgi/Lisa(loc)
-	..()
+/obj/structure/largecrate/lisa/attackby(obj/item/W as obj, mob/user as mob)	//ugly but oh well
+	if(istype(W, /obj/item/crowbar))
+		new /mob/living/simple_animal/pet/dog/corgi/Lisa(loc)
+	return ..()
 
 /obj/structure/largecrate/cow
 	name = "cow crate"
 	icon_state = "lisacrate"
 
-/obj/structure/largecrate/cow/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/crowbar))
+/obj/structure/largecrate/cow/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/crowbar))
 		new /mob/living/simple_animal/cow(loc)
-	..()
+	return ..()
 
 /obj/structure/largecrate/goat
 	name = "goat crate"
 	icon_state = "lisacrate"
 
-/obj/structure/largecrate/goat/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/crowbar))
+/obj/structure/largecrate/goat/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/crowbar))
 		new /mob/living/simple_animal/hostile/retaliate/goat(loc)
-	..()
+	return ..()
 
 /obj/structure/largecrate/chick
 	name = "chicken crate"
 	icon_state = "lisacrate"
 
-/obj/structure/largecrate/chick/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/crowbar))
+/obj/structure/largecrate/chick/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/crowbar))
 		var/num = rand(4, 6)
 		for(var/i = 0, i < num, i++)
 			new /mob/living/simple_animal/chick(loc)
-	..()
+	return ..()
 
 /obj/structure/largecrate/cat
 	name = "cat crate"
 	icon_state = "lisacrate"
 
-/obj/structure/largecrate/cat/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/crowbar))
+/obj/structure/largecrate/cat/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/crowbar))
 		new /mob/living/simple_animal/pet/cat(loc)
-	..()
+	return ..()

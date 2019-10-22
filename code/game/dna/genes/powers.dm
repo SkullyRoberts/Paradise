@@ -39,7 +39,7 @@
 		return 0
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
-		if(H.species && H.species.slowdown && !(flags & MUTCHK_FORCED))
+		if(H.dna.species && H.dna.species.speed_mod && !(flags & MUTCHK_FORCED))
 			return 0
 	return 1
 
@@ -103,11 +103,13 @@
 	..(M,connected,flags)
 	M.pass_flags |= PASSTABLE
 	M.resize = 0.8
+	M.update_transform()
 
 /datum/dna/gene/basic/midget/deactivate(var/mob/M, var/connected, var/flags)
 	..()
 	M.pass_flags &= ~PASSTABLE
 	M.resize = 1.25
+	M.update_transform()
 
 // OLD HULK BEHAVIOR
 /datum/dna/gene/basic/hulk
@@ -164,10 +166,12 @@
 /datum/dna/gene/basic/xray/activate(mob/living/M, connected, flags)
 	..()
 	M.update_sight()
+	M.update_icons() //Apply eyeshine as needed.
 
 /datum/dna/gene/basic/xray/deactivate(mob/living/M, connected, flags)
 	..()
 	M.update_sight()
+	M.update_icons() //Remove eyeshine as needed.
 
 /datum/dna/gene/basic/tk
 	name="Telekenesis"

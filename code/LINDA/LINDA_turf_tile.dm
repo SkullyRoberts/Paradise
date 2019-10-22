@@ -49,6 +49,7 @@
 	var/icy = 0
 	var/icyoverlay
 	var/obj/effect/hotspot/active_hotspot
+	var/planetary_atmos = FALSE //air will revert to its initial mix over time
 
 	var/temperature_archived //USED ONLY FOR SOLIDS
 
@@ -65,8 +66,6 @@
 		air.toxins = toxins
 
 		air.temperature = temperature
-
-		update_visuals()
 
 /turf/simulated/Destroy()
 	visibilityChanged()
@@ -140,12 +139,15 @@
 
 
 /turf/simulated/proc/process_cell()
-
-	if(archived_cycle < air_master.current_cycle) //archive self if not already done
+	if(archived_cycle < SSair.times_fired) //archive self if not already done
 		archive()
-	current_cycle = air_master.current_cycle
+	current_cycle = SSair.times_fired
 
 	var/remove = 1 //set by non simulated turfs who are sharing with this turf
+
+	var/planet_atmos = planetary_atmos
+	if (planet_atmos)
+		atmos_adjacent_turfs_amount++
 
 	for(var/direction in cardinal)
 		if(!(atmos_adjacent_turfs & direction))
@@ -184,7 +186,7 @@
 							share_air(enemy_simulated) //share
 			else
 				if(!air.compare(enemy_simulated.air)) //compare if
-					air_master.add_to_active(enemy_simulated) //excite enemy
+					SSair.add_to_active(enemy_simulated) //excite enemy
 					if(excited_group)
 						excited_group.add_turf(enemy_simulated) //add enemy to group
 					else
@@ -207,7 +209,20 @@
 				if(excited_group)
 					last_share_check()
 
+	if(planet_atmos) //share our air with the "atmosphere" "above" the turf
+		var/datum/gas_mixture/G = new
+		G.copy_from_turf(src)
+		G.archive()
+		if(!air.compare(G))
+			if(!excited_group)
+				var/datum/excited_group/EG = new
+				EG.add_turf(src)
+			air.share(G, atmos_adjacent_turfs_amount)
+			last_share_check()
+
 	air.react()
+
+	update_visuals()
 
 	if(air.temperature > FIRE_MINIMUM_TEMPERATURE_TO_EXIST)
 		hotspot_expose(air.temperature, CELL_VOLUME)
@@ -215,49 +230,34 @@
 			item.temperature_expose(air, air.temperature, CELL_VOLUME)
 		temperature_expose(air, air.temperature, CELL_VOLUME)
 
-		if(air.temperature > MINIMUM_TEMPERATURE_START_SUPERCONDUCTION)
-			if(consider_superconductivity(starting = 1))
-				remove = 0
-
-	if(air.temperature < T0C && air.return_pressure() > 10)
-		icy = 1
-	else if(air.temperature > T0C)
-		icy = 0
-
-	update_visuals()
+	if(air.temperature > MINIMUM_TEMPERATURE_START_SUPERCONDUCTION)
+		if(consider_superconductivity(starting = 1))
+			remove = 0
 
 	if(!excited_group && remove == 1)
-		air_master.remove_from_active(src)
+		SSair.remove_from_active(src)
 
 
 /turf/simulated/proc/archive()
 	if(air) //For open space like floors
 		air.archive()
 	temperature_archived = temperature
-	archived_cycle = air_master.current_cycle
+	archived_cycle = SSair.times_fired
 
 /turf/simulated/proc/update_visuals()
-	if(icy && !icyoverlay)
-		overlays |= icemaster
-		icyoverlay = icemaster
-	else if(icyoverlay && !icy)
-		icyoverlay = null
-		overlays -= icemaster
-
 	var/new_overlay_type = tile_graphic()
 	if(new_overlay_type == atmos_overlay_type)
 		return
 	var/atmos_overlay = get_atmos_overlay_by_name(atmos_overlay_type)
 	if(atmos_overlay)
-		overlays -= atmos_overlay
-		mouse_opacity = 1
+		vis_contents -= atmos_overlay
 
 	atmos_overlay = get_atmos_overlay_by_name(new_overlay_type)
 	if(atmos_overlay)
-		overlays += atmos_overlay
+		vis_contents += atmos_overlay
 		atmos_overlay_type = new_overlay_type
 
-/turf/simulated/proc/get_atmos_overlay_by_name(var/name)
+/turf/simulated/proc/get_atmos_overlay_by_name(name)
 	switch(name)
 		if("plasma")
 			return plmaster
@@ -266,13 +266,13 @@
 	return null
 
 /turf/simulated/proc/tile_graphic()
+	if(!air)
+		return
 	if(air.toxins > MOLES_PLASMA_VISIBLE)
-		mouse_opacity = 0
 		return "plasma"
 
 	var/datum/gas/sleeping_agent = locate(/datum/gas/sleeping_agent) in air.trace_gases
 	if(sleeping_agent && (sleeping_agent.moles > 1))
-		mouse_opacity = 0
 		return "sleeping_agent"
 	return null
 
@@ -288,7 +288,7 @@
 		last_share_check()
 
 /turf/proc/consider_pressure_difference(var/turf/simulated/T, var/difference)
-	air_master.high_pressure_delta |= src
+	SSair.high_pressure_delta |= src
 	if(difference > pressure_difference)
 		pressure_direction = get_dir(src, T)
 		pressure_difference = difference
@@ -298,37 +298,30 @@
 		excited_group.reset_cooldowns()
 
 /turf/proc/high_pressure_movements()
-	for(var/atom/movable/M in src)
-		M.experience_pressure_difference(pressure_difference, pressure_direction)
+	var/atom/movable/M
+	for(var/thing in src)
+		M = thing
+		if(!M.anchored && !M.pulledby && M.last_high_pressure_movement_air_cycle < SSair.times_fired)
+			M.experience_pressure_difference(pressure_difference, pressure_direction)
 
 
 
 
-/atom/movable/var/pressure_resistance = 5
-/atom/movable/var/throw_pressure_limit = 15
-/atom/movable/var/last_forced_movement = 0
+/atom/movable/var/pressure_resistance = 10
+/atom/movable/var/last_high_pressure_movement_air_cycle = 0
 
-/atom/movable/proc/experience_pressure_difference(pressure_difference, direction)
-	if(last_forced_movement >= air_master.current_cycle)
-		return 0
-	else if(!anchored && !pulledby)
-		if(pressure_difference >= throw_pressure_limit)
-			var/general_direction = get_edge_target_turf(src, direction)
-			if(last_forced_movement + 10 < air_master.current_cycle && is_valid_tochat_target(src)) //the first check prevents spamming throw to_chat
-				to_chat(src, "<span class='userdanger'>The pressure sends you flying!</span>")
-			if(ishuman(src))
-				var/mob/living/carbon/human/H = src
-				H.Weaken(min(pressure_difference / 10, 10))
-			spawn()
-				throw_at(general_direction, pressure_difference / 10, pressure_difference / 200, null, 0, 0, null)
-			last_forced_movement = air_master.current_cycle
-			return 1
-		else if(pressure_difference > pressure_resistance)
-			spawn()
-				step(src, direction)
-			last_forced_movement = air_master.current_cycle
-			return 1
-	return 0
+/atom/movable/proc/experience_pressure_difference(pressure_difference, direction, pressure_resistance_prob_delta = 0)
+	var/const/PROBABILITY_OFFSET = 25
+	var/const/PROBABILITY_BASE_PRECENT = 75
+	var/max_force = sqrt(pressure_difference) * (MOVE_FORCE_DEFAULT / 5)
+	set waitfor = 0
+	var/move_prob = 100
+	if(pressure_resistance > 0)
+		move_prob = (pressure_difference / pressure_resistance * PROBABILITY_BASE_PRECENT) - PROBABILITY_OFFSET
+	move_prob += pressure_resistance_prob_delta
+	if(move_prob > PROBABILITY_OFFSET && prob(move_prob) && (move_resist != INFINITY) && (!anchored && (max_force >= (move_resist * MOVE_FORCE_PUSH_RATIO))) || (anchored && (max_force >= (move_resist * MOVE_FORCE_FORCEPUSH_RATIO))))
+		step(src, direction)
+		last_high_pressure_movement_air_cycle = SSair.times_fired
 
 
 
@@ -337,8 +330,8 @@
 	var/breakdown_cooldown = 0
 
 /datum/excited_group/New()
-	if(air_master)
-		air_master.excited_groups += src
+	if(SSair)
+		SSair.excited_groups += src
 
 /datum/excited_group/proc/add_turf(var/turf/simulated/T)
 	turf_list += T
@@ -348,13 +341,13 @@
 
 /datum/excited_group/proc/merge_groups(var/datum/excited_group/E)
 	if(turf_list.len > E.turf_list.len)
-		air_master.excited_groups -= E
+		SSair.excited_groups -= E
 		for(var/turf/simulated/T in E.turf_list)
 			T.excited_group = src
 			turf_list += T
 			reset_cooldowns()
 	else
-		air_master.excited_groups -= src
+		SSair.excited_groups -= src
 		for(var/turf/simulated/T in turf_list)
 			T.excited_group = E
 			E.turf_list += T
@@ -400,31 +393,22 @@
 		T.excited = 0
 		T.recently_active = 0
 		T.excited_group = null
-		air_master.active_turfs -= T
+		SSair.active_turfs -= T
 	garbage_collect()
 
 /datum/excited_group/proc/garbage_collect()
 	for(var/turf/simulated/T in turf_list)
 		T.excited_group = null
 	turf_list.Cut()
-	air_master.excited_groups -= src
+	SSair.excited_groups -= src
 
-
-
-
-
-
-
-
-
-
-turf/simulated/proc/super_conduct()
+/turf/simulated/proc/super_conduct()
 	var/conductivity_directions = 0
 	if(blocks_air)
 		//Does not participate in air exchange, so will conduct heat across all four borders at this time
 		conductivity_directions = NORTH|SOUTH|EAST|WEST
 
-		if(archived_cycle < air_master.current_cycle)
+		if(archived_cycle < SSair.times_fired)
 			archive()
 	else
 		//Does particate in air exchange so only consider directions not considered during process_cell()
@@ -444,7 +428,7 @@ turf/simulated/proc/super_conduct()
 				if(istype(neighbor, /turf/simulated)) //anything under this subtype will share in the exchange
 					var/turf/simulated/T = neighbor
 
-					if(T.archived_cycle < air_master.current_cycle)
+					if(T.archived_cycle < SSair.times_fired)
 						T.archive()
 
 					if(T.air)
@@ -452,7 +436,7 @@ turf/simulated/proc/super_conduct()
 							air.temperature_share(T.air, WINDOW_HEAT_TRANSFER_COEFFICIENT)
 						else //Solid but neighbor is open
 							T.air.temperature_turf_share(src, T.thermal_conductivity)
-						air_master.add_to_active(T, 0)
+						SSair.add_to_active(T, 0)
 					else
 						if(air) //Open but neighbor is solid
 							air.temperature_turf_share(T, T.thermal_conductivity)
@@ -476,12 +460,12 @@ turf/simulated/proc/super_conduct()
 
 		//Make sure still hot enough to continue conducting heat
 		if(air.temperature < MINIMUM_TEMPERATURE_FOR_SUPERCONDUCTION)
-			air_master.active_super_conductivity -= src
+			SSair.active_super_conductivity -= src
 			return 0
 
 	else
 		if(temperature < MINIMUM_TEMPERATURE_FOR_SUPERCONDUCTION)
-			air_master.active_super_conductivity -= src
+			SSair.active_super_conductivity -= src
 			return 0
 
 turf/simulated/proc/consider_superconductivity(starting)
@@ -497,7 +481,7 @@ turf/simulated/proc/consider_superconductivity(starting)
 		if(temperature < (starting?MINIMUM_TEMPERATURE_START_SUPERCONDUCTION:MINIMUM_TEMPERATURE_FOR_SUPERCONDUCTION))
 			return 0
 
-	air_master.active_super_conductivity |= src
+	SSair.active_super_conductivity |= src
 	return 1
 
 turf/simulated/proc/radiate_to_spess() //Radiate excess tile heat to space
@@ -506,5 +490,26 @@ turf/simulated/proc/radiate_to_spess() //Radiate excess tile heat to space
 		if((heat_capacity > 0) && (abs(delta_temperature) > MINIMUM_TEMPERATURE_DELTA_TO_CONSIDER))
 
 			var/heat = thermal_conductivity*delta_temperature* \
-				(heat_capacity*700000/(heat_capacity+700000)) //700000 is the heat_capacity from a space turf, hardcoded here
+				(heat_capacity*HEAT_CAPACITY_VACUUM/(heat_capacity+HEAT_CAPACITY_VACUUM)) //700000 is the heat_capacity from a space turf, hardcoded here
 			temperature -= heat/heat_capacity
+
+/turf/proc/Initialize_Atmos(times_fired)
+	CalculateAdjacentTurfs()
+
+/turf/simulated/Initialize_Atmos(times_fired)
+	..()
+	update_visuals()
+	for(var/direction in cardinal)
+		if(!(atmos_adjacent_turfs & direction))
+			continue
+		var/turf/enemy_tile = get_step(src, direction)
+		if(istype(enemy_tile, /turf/simulated))
+			var/turf/simulated/enemy_simulated = enemy_tile
+			if(!air.compare(enemy_simulated.air))
+				excited = 1
+				SSair.active_turfs |= src
+				break
+		else
+			if(!air.check_turf_total(enemy_tile))
+				excited = 1
+				SSair.active_turfs |= src

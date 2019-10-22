@@ -7,7 +7,8 @@
 
 	icon = 'icons/obj/doors/mineral_doors.dmi'
 	icon_state = "metal"
-
+	max_integrity = 200
+	armor = list("melee" = 10, "bullet" = 0, "laser" = 0, "energy" = 100, "bomb" = 10, "bio" = 100, "rad" = 100, "fire" = 50, "acid" = 50)
 	var/initial_state
 	var/state = 0 //closed, 1 == open
 	var/isSwitchingStates = 0
@@ -24,7 +25,7 @@
 	..()
 	initial_state = icon_state
 
-/obj/structure/mineral_door/initialize()
+/obj/structure/mineral_door/Initialize()
 	..()
 	air_update_turf(1)
 
@@ -35,7 +36,7 @@
 
 /obj/structure/mineral_door/Move()
 	var/turf/T = loc
-	..()
+	. = ..()
 	move_update_air(T)
 
 /obj/structure/mineral_door/Bumped(atom/user)
@@ -52,9 +53,6 @@
 /obj/structure/mineral_door/attack_hand(mob/user)
 	return TryToSwitchState(user)
 
-/obj/structure/mineral_door/attack_animal(mob/user)
-	return TryToSwitchState(user)
-	
 /obj/structure/mineral_door/attack_ghost(mob/user)
 	if(user.can_advanced_admin_interact())
 		SwitchState()
@@ -68,11 +66,11 @@
 	return !density
 
 /obj/structure/mineral_door/proc/TryToSwitchState(atom/user)
-	if(isSwitchingStates) 
+	if(isSwitchingStates)
 		return
 	if(isliving(user))
 		var/mob/living/M = user
-		if(world.time - user.last_bumped <= 60) 
+		if(world.time - user.last_bumped <= 60)
 			return //NOTE do we really need that?
 		if(M.client)
 			if(iscarbon(M))
@@ -101,7 +99,7 @@
 	air_update_turf(1)
 	update_icon()
 	isSwitchingStates = 0
-	
+
 	if(close_delay != -1)
 		spawn(close_delay)
 			Close()
@@ -129,35 +127,19 @@
 	else
 		icon_state = initial_state
 
-/obj/structure/mineral_door/attackby(obj/item/weapon/W, mob/user, params)
-	if(istype(W, /obj/item/weapon/pickaxe))
-		var/obj/item/weapon/pickaxe/digTool = W
+/obj/structure/mineral_door/attackby(obj/item/W, mob/user, params)
+	if(istype(W, /obj/item/pickaxe))
+		var/obj/item/pickaxe/digTool = W
 		to_chat(user, "<span class='notice'>You start digging \the [src].</span>")
-		if(do_after(user, digTool.digspeed * hardness, target = src) && src)
+		if(do_after(user, 40 * digTool.toolspeed * hardness, target = src) && src)
 			to_chat(user, "<span class='notice'>You finished digging.</span>")
 			deconstruct(TRUE)
 	else if(user.a_intent != INTENT_HARM)
 		attack_hand(user)
 	else
-		attacked_by(W, user)
+		return ..()
 
-/obj/structure/mineral_door/proc/attacked_by(obj/item/I, mob/user)
-	if(I.damtype != STAMINA)
-		user.changeNext_move(CLICK_CD_MELEE)
-		user.do_attack_animation(src)
-		visible_message("<span class='notice'>[user] hits \the [src] with \the [I].</span>")
-		if(damageSound)
-			playsound(loc, damageSound, 100, 1)
-		else
-			playsound(loc, I.hitsound, 100, 1)
-		hardness -= I.force / 100
-		CheckHardness()
-
-/obj/structure/mineral_door/proc/CheckHardness()
-	if(hardness <= 0)
-		deconstruct(FALSE)
-
-/obj/structure/mineral_door/proc/deconstruct(disassembled = TRUE)
+/obj/structure/mineral_door/deconstruct(disassembled = TRUE)
 	var/turf/T = get_turf(src)
 	if(sheetType)
 		if(disassembled)
@@ -166,28 +148,14 @@
 			new sheetType(T, max(sheetAmount - 2, 1))
 	qdel(src)
 
-/obj/structure/mineral_door/ex_act(severity = 1)
-	switch(severity)
-		if(1)
-			deconstruct(FALSE)
-		if(2)
-			if(prob(20))
-				deconstruct(FALSE)
-			else
-				hardness--
-				CheckHardness()
-		if(3)
-			hardness -= 0.1
-			CheckHardness()
-
 /obj/structure/mineral_door/iron
-	hardness = 3
+	max_integrity = 300
 
 /obj/structure/mineral_door/silver
 	name = "silver door"
 	icon_state = "silver"
 	sheetType = /obj/item/stack/sheet/mineral/silver
-	hardness = 3
+	max_integrity = 300
 
 /obj/structure/mineral_door/gold
 	name = "gold door"
@@ -198,14 +166,14 @@
 	name = "uranium door"
 	icon_state = "uranium"
 	sheetType = /obj/item/stack/sheet/mineral/uranium
-	hardness = 3
+	max_integrity = 300
 	light_range = 2
 
 /obj/structure/mineral_door/sandstone
 	name = "sandstone door"
 	icon_state = "sandstone"
 	sheetType = /obj/item/stack/sheet/mineral/sandstone
-	hardness = 0.5
+	max_integrity = 100
 
 /obj/structure/mineral_door/transparent
 	opacity = 0
@@ -219,7 +187,7 @@
 	icon_state = "plasma"
 	sheetType = /obj/item/stack/sheet/mineral/plasma
 
-/obj/structure/mineral_door/transparent/plasma/attackby(obj/item/weapon/W, mob/user)
+/obj/structure/mineral_door/transparent/plasma/attackby(obj/item/W, mob/user)
 	if(is_hot(W))
 		message_admins("Plasma mineral door ignited by [key_name_admin(user)] in ([x], [y], [z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)", 0, 1)
 		log_game("Plasma mineral door ignited by [key_name(user)] in ([x], [y], [z])")
@@ -229,6 +197,7 @@
 		return ..()
 
 /obj/structure/mineral_door/transparent/plasma/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+	..()
 	if(exposed_temperature > 300)
 		TemperatureAct(exposed_temperature)
 
@@ -240,7 +209,7 @@
 	name = "diamond door"
 	icon_state = "diamond"
 	sheetType = /obj/item/stack/sheet/mineral/diamond
-	hardness = 10
+	max_integrity = 1000
 
 /obj/structure/mineral_door/wood
 	name = "wood door"
@@ -249,8 +218,8 @@
 	closeSound = 'sound/effects/doorcreaky.ogg'
 	sheetType = /obj/item/stack/sheet/wood
 	hardness = 1
-	burn_state = FLAMMABLE
-	burntime = 30
+	resistance_flags = FLAMMABLE
+	max_integrity = 200
 
 /obj/structure/mineral_door/resin
 	name = "resin door"

@@ -28,6 +28,11 @@
 /*
  * Text sanitization
  */
+// Can be used almost the same way as normal input for text
+/proc/clean_input(Message, Title, Default, mob/user=usr)
+	var/txt = input(user, Message, Title, Default) as text | null
+	if(txt)
+		return html_encode(txt)
 
 //Simply removes < and > and limits the length of the message
 /proc/strip_html_simple(var/t,var/limit=MAX_MESSAGE_LEN)
@@ -59,9 +64,15 @@
 /proc/sanitize(var/t,var/list/repl_chars = null)
 	return html_encode(sanitize_simple(t,repl_chars))
 
+// Gut ANYTHING that isnt alphanumeric, or brackets
 /proc/paranoid_sanitize(t)
 	var/regex/alphanum_only = regex("\[^a-zA-Z0-9# ,.?!:;()]", "g")
 	return alphanum_only.Replace(t, "#")
+
+// Less agressive, to allow discord features, such as <>, / and @
+/proc/not_as_paranoid_sanitize(t)
+	var/regex/alphanum_slashes_only = regex("\[^a-zA-Z0-9# ,.?!:;()/<>@]", "g")
+	return alphanum_slashes_only.Replace(t, "#")
 
 //Runs sanitize and strip_html_simple
 //I believe strip_html_simple() is required to run first to prevent '<' from displaying as '&lt;' after sanitize() calls byond's html_encode()
@@ -96,14 +107,33 @@
 	if(non_whitespace)		return text		//only accepts the text if it has some non-spaces
 
 // Used to get a sanitized input.
-/proc/stripped_input(var/mob/user, var/message = "", var/title = "", var/default = "", var/max_length=MAX_MESSAGE_LEN)
-	var/name = input(user, message, title, default)
-	return strip_html_properly(name, max_length)
+/proc/stripped_input(mob/user, message = "", title = "", default = "", max_length=MAX_MESSAGE_LEN, no_trim=FALSE)
+	var/name = input(user, message, title, default) as text|null
+	if(no_trim)
+		return copytext(html_encode(name), 1, max_length)
+	else
+		return trim(html_encode(name), max_length) //trim is "outside" because html_encode can expand single symbols into multiple symbols (such as turning < into &lt;)
+
+// Uses client.typing to check if the popup should appear or not
+/proc/typing_input(mob/user, message = "", title = "", default = "")
+	if(user.client.checkTyping()) // Prevent double windows
+		return null
+	var/client/C = user.client // Save it in a var in case the client disconnects from the mob
+	C.typing = TRUE
+	var/msg = input(user, message, title, default) as text|null
+	if(!C)
+		return null
+	C.typing = FALSE
+	if(!user || C != user.client) // User got out of the mob for some reason or the mob is gone
+		return null
+	return msg
 
 //Filters out undesirable characters from names
 /proc/reject_bad_name(var/t_in, var/allow_numbers=0, var/max_length=MAX_NAME_LEN)
+	// Decode so that names with characters like < are still rejected
+	t_in = html_decode(t_in)
 	if(!t_in || length(t_in) > max_length)
-		return //Rejects the input if it is null or if it is longer then the max length allowed
+		return //Rejects the input if it is null or if it is longer than the max length allowed
 
 	var/number_of_alphanumeric	= 0
 	var/last_char_group			= 0
@@ -133,14 +163,14 @@
 				number_of_alphanumeric++
 				last_char_group = 3
 
-			// '  -  .
-			if(39,45,46)			//Common name punctuation
+			// '  -  . ,
+			if(39, 45, 46, 44)			//Common name punctuation
 				if(!last_char_group) continue
 				t_out += ascii2text(ascii_char)
 				last_char_group = 2
 
-			// ~   |   @  :  #  $  %  &  *  +
-			if(126,124,64,58,35,36,37,38,42,43)			//Other symbols that we'll allow (mainly for AI)
+			// ~   |   @  :  #  $  %  &  *  +  !
+			if(126, 124, 64, 58, 35, 36, 37, 38, 42, 43, 33)			//Other symbols that we'll allow (mainly for AI)
 				if(!last_char_group)		continue	//suppress at start of string
 				if(!allow_numbers)			continue
 				t_out += ascii2text(ascii_char)
@@ -452,7 +482,7 @@ proc/checkhtml(var/t)
 
 
 // Pencode
-/proc/pencode_to_html(text, mob/user, obj/item/weapon/pen/P = null, format = 1, sign = 1, fields = 1, deffont = PEN_FONT, signfont = SIGNFONT, crayonfont = CRAYON_FONT)
+/proc/pencode_to_html(text, mob/user, obj/item/pen/P = null, format = 1, sign = 1, fields = 1, deffont = PEN_FONT, signfont = SIGNFONT, crayonfont = CRAYON_FONT, no_font = FALSE)
 	text = replacetext(text, "\[b\]",		"<B>")
 	text = replacetext(text, "\[/b\]",		"</B>")
 	text = replacetext(text, "\[i\]",		"<I>")
@@ -505,11 +535,51 @@ proc/checkhtml(var/t)
 		text = replacetext(text, "\[row\]",		"</td><tr>")
 		text = replacetext(text, "\[cell\]",	"<td>")
 		text = replacetext(text, "\[logo\]",	"<img src = ntlogo.png>")
-	if(P)
-		text = "<font face=\"[deffont]\" color=[P ? P.colour : "black"]>[text]</font>"
-	else
-		text = "<font face=\"[deffont]\">[text]</font>"
+		text = replacetext(text, "\[time\]",	"[station_time_timestamp()]") // TO DO
+		if(!no_font)
+			if(P)
+				text = "<font face=\"[deffont]\" color=[P ? P.colour : "black"]>[text]</font>"
+			else
+				text = "<font face=\"[deffont]\">[text]</font>"
+    
 	text = copytext(text, 1, MAX_PAPER_MESSAGE_LEN)
+	return text
+
+/proc/convert_pencode_arg(text, tag, arg)
+	arg = sanitize_simple(html_encode(arg), list("''"="","\""="", "?"=""))
+	// https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html#rule-4---css-escape-and-strictly-validate-before-inserting-untrusted-data-into-html-style-property-values
+	var/list/style_attacks = list("javascript:", "expression", "byond:", "file:")
+
+	for(var/style_attack in style_attacks)
+		if(findtext(arg, style_attack))
+			// Do not attempt to render dangerous things
+			return text
+
+	if(tag == "class")
+		return "<span class='[arg]'>"
+
+	if(tag == "style")
+		return "<span style='[arg]'>"
+
+	if(tag == "img")
+		var/list/img_props = splittext(arg, ";")
+		if(img_props.len == 3)
+			return "<img src='[img_props[1]]' width='[img_props[2]]' height='[img_props[3]]'>"
+		if(img_props.len == 2)
+			return "<img src='[img_props[1]]' width='[img_props[2]]'>"
+		return "<img src='[arg]'>"
+
+	return text
+
+/proc/admin_pencode_to_html()
+	var/text = pencode_to_html(arglist(args))
+	var/regex/R = new(@"\[(.*?) (.*?)\]", "ge")
+	text = R.Replace(text, /proc/convert_pencode_arg)
+
+	text = replacetext(text, "\[/class\]", "</span>")
+	text = replacetext(text, "\[/style\]", "</span>")
+	text = replacetext(text, "\[/img\]", "</img>")
+
 	return text
 
 /proc/html_to_pencode(text)
@@ -546,3 +616,5 @@ proc/checkhtml(var/t)
 	text = replacetext(text, "<td>",					"\[cell\]")
 	text = replacetext(text, "<img src = ntlogo.png>",	"\[logo\]")
 	return text
+
+#define string2charlist(string) (splittext(string, regex("(\\x0A|.)")) - splittext(string, ""))

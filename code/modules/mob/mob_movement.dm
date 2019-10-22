@@ -1,112 +1,21 @@
 /mob/CanPass(atom/movable/mover, turf/target, height=0)
 	if(height==0)
 		return 1
-	if(istype(mover, /obj/item/projectile) || mover.throwing)
+	if(istype(mover, /obj/item/projectile))
 		return (!density || lying)
+	if(mover.throwing)
+		return (!density || lying || (mover.throwing.thrower == src))
 	if(mover.checkpass(PASSMOB))
 		return 1
 	if(buckled == mover)
-		return 1
+		return TRUE
 	if(ismob(mover))
 		var/mob/moving_mob = mover
 		if((other_mobs && moving_mob.other_mobs))
-			return 1
-		if(mover == buckled_mob)
-			return 1
+			return TRUE
+		if(mover in buckled_mobs)
+			return TRUE
 	return (!mover.density || !density || lying)
-
-//The byond version of these verbs wait for the next tick before acting.
-//	instant verbs however can run mid tick or even during the time between ticks.
-/client/verb/moveup()
-	set name = ".moveup"
-	set instant = 1
-	Move(get_step(mob, NORTH), NORTH)
-
-/client/verb/movedown()
-	set name = ".movedown"
-	set instant = 1
-	Move(get_step(mob, SOUTH), SOUTH)
-
-/client/verb/moveright()
-	set name = ".moveright"
-	set instant = 1
-	Move(get_step(mob, EAST), EAST)
-
-/client/verb/moveleft()
-	set name = ".moveleft"
-	set instant = 1
-	Move(get_step(mob, WEST), WEST)
-
-
-/client/Northeast()
-	swap_hand()
-	return
-
-
-/client/Southeast()
-	attack_self()
-	return
-
-
-/client/Southwest()
-	if(iscarbon(usr))
-		var/mob/living/carbon/C = usr
-		C.toggle_throw_mode()
-	else if(isrobot(usr))
-		var/mob/living/silicon/robot/R = usr
-		var/module = R.get_selected_module()
-		if(!module)
-			to_chat(usr, "<span class='warning'>You have no module selected.</span>")
-			return
-		R.cycle_modules()
-		R.uneq_numbered(module)
-	else
-		to_chat(usr, "<span class='warning'>This mob type cannot throw items.</span>")
-	return
-
-
-/client/Northwest()
-	if(iscarbon(usr))
-		var/mob/living/carbon/C = usr
-		if(!C.get_active_hand())
-			to_chat(usr, "<span class='warning'>You have nothing to drop in your hand.</span>")
-			return
-		drop_item()
-	else if(isrobot(usr))
-		var/mob/living/silicon/robot/R = usr
-		if(!R.get_selected_module())
-			to_chat(usr, "<span class='warning'>You have no module selected.</span>")
-			return
-		R.deselect_module(R.get_selected_module())
-	else
-		to_chat(usr, "<span class='warning'>This mob type cannot drop items.</span>")
-	return
-
-//This gets called when you press the delete button.
-/client/verb/delete_key_pressed()
-	set hidden = 1
-
-	if(!usr.pulling)
-		to_chat(usr, "<span class='notice'>You are not pulling anything.</span>")
-		return
-	usr.stop_pulling()
-
-/client/verb/swap_hand()
-	set hidden = 1
-	if(istype(mob, /mob/living/carbon))
-		mob:swap_hand()
-	if(istype(mob,/mob/living/silicon/robot))
-		var/mob/living/silicon/robot/R = mob
-		R.cycle_modules()
-	return
-
-
-
-/client/verb/attack_self()
-	set hidden = 1
-	if(mob)
-		mob.mode()
-	return
 
 
 /client/verb/toggle_throw_mode()
@@ -125,7 +34,7 @@
 	return
 
 
-/client/Center()
+/* /client/Center()
 	/* No 3D movement in 2D spessman game. dir 16 is Z Up
 	if(isobj(mob.loc))
 		var/obj/O = mob.loc
@@ -133,7 +42,7 @@
 			return O.relaymove(mob, 16)
 	*/
 	return
-
+ */
 
 
 /client/proc/Move_object(direct)
@@ -147,14 +56,21 @@
 			mob.control_object.forceMove(get_step(mob.control_object, direct))
 	return
 
-
+#define MOVEMENT_DELAY_BUFFER 0.75
+#define MOVEMENT_DELAY_BUFFER_DELTA 1.25
 /client/Move(n, direct)
 	if(world.time < move_delay)
 		return
-
+	else
+		next_move_dir_add = 0
+		next_move_dir_sub = 0
+	var/old_move_delay = move_delay
 	move_delay = world.time + world.tick_lag //this is here because Move() can now be called multiple times per tick
 	if(!mob || !mob.loc)
 		return 0
+
+	if(!n || !direct) // why did we never check this before?
+		return FALSE
 
 	if(mob.notransform)
 		return 0 //This is sota the goto stop mobs from moving var
@@ -182,7 +98,7 @@
 		return mob.remote_control.relaymove(mob, direct)
 
 	if(isAI(mob))
-		if(istype(mob.loc, /obj/item/device/aicard))
+		if(istype(mob.loc, /obj/item/aicard))
 			var/obj/O = mob.loc
 			return O.relaymove(mob, direct) // aicards have special relaymove stuff
 		return AIMove(n, direct, mob)
@@ -220,10 +136,14 @@
 
 	//We are now going to move
 	moving = 1
-	move_delay = mob.movement_delay() + world.time
+	var/delay = mob.movement_delay()
+	if(old_move_delay + (delay * MOVEMENT_DELAY_BUFFER_DELTA) + MOVEMENT_DELAY_BUFFER > world.time)
+		move_delay = old_move_delay
+	else
+		move_delay = world.time
 	mob.last_movement = world.time
 
-	if(locate(/obj/item/weapon/grab, mob))
+	if(locate(/obj/item/grab, mob))
 		move_delay = max(move_delay, world.time + 7)
 		var/list/L = mob.ret_grab()
 		if(istype(L, /list))
@@ -256,17 +176,29 @@
 						return
 
 	else if(mob.confused)
-		step(mob, pick(cardinal))
-	else
-		. = ..()
+		var/newdir = 0
+		if(mob.confused > 40)
+			newdir = pick(alldirs)
+		else if(prob(mob.confused * 1.5))
+			newdir = angle2dir(dir2angle(direct) + pick(90, -90))
+		else if(prob(mob.confused * 3))
+			newdir = angle2dir(dir2angle(direct) + pick(45, -45))
+		if(newdir)
+			direct = newdir
+			n = get_step(mob, direct)
 
-	for(var/obj/item/weapon/grab/G in mob)
+	. = ..()
+	mob.setDir(direct)
+
+	for(var/obj/item/grab/G in mob)
 		if(G.state == GRAB_NECK)
-			mob.setDir(reverse_dir[direct])
+			mob.setDir(angle2dir((dir2angle(direct) + 202.5) % 365))
 		G.adjust_position()
-	for(var/obj/item/weapon/grab/G in mob.grabbed_by)
+	for(var/obj/item/grab/G in mob.grabbed_by)
 		G.adjust_position()
-
+	if((direct & (direct - 1)) && mob.loc == n) //moved diagonally successfully
+		delay = mob.movement_delay() * 2
+	move_delay += delay
 	moving = 0
 	if(mob && .)
 		if(mob.throwing)
@@ -286,16 +218,16 @@
 	if(mob.grabbed_by.len)
 		var/list/grabbing = list()
 
-		if(istype(mob.l_hand, /obj/item/weapon/grab))
-			var/obj/item/weapon/grab/G = mob.l_hand
+		if(istype(mob.l_hand, /obj/item/grab))
+			var/obj/item/grab/G = mob.l_hand
 			grabbing += G.affecting
 
-		if(istype(mob.r_hand, /obj/item/weapon/grab))
-			var/obj/item/weapon/grab/G = mob.r_hand
+		if(istype(mob.r_hand, /obj/item/grab))
+			var/obj/item/grab/G = mob.r_hand
 			grabbing += G.affecting
 
 		for(var/X in mob.grabbed_by)
-			var/obj/item/weapon/grab/G = X
+			var/obj/item/grab/G = X
 			switch(G.state)
 
 				if(GRAB_PASSIVE)
@@ -361,13 +293,12 @@
 				spawn(0)
 					var/limit = 2//For only two trailing shadows.
 					for(var/turf/T in getline(mobloc, L.loc))
-						spawn(0)
-							anim(T,L,'icons/mob/mob.dmi',,"shadow",,L.dir)
+						new /obj/effect/temp_visual/dir_setting/ninja/shadow(T, L.dir)
 						limit--
-						if(limit<=0)	break
+						if(limit<=0)
+							break
 			else
-				spawn(0)
-					anim(mobloc,mob,'icons/mob/mob.dmi',,"shadow",,L.dir)
+				new /obj/effect/temp_visual/dir_setting/ninja/shadow(mobloc, L.dir)
 				L.forceMove(get_step(L, direct))
 			L.dir = direct
 		if(3) //Incorporeal move, but blocked by holy-watered tiles
@@ -431,10 +362,14 @@
 /mob/proc/Move_Pulled(atom/A)
 	if(!canmove || restrained() || !pulling)
 		return
-	if(pulling.anchored)
+	if(pulling.anchored || pulling.move_resist > move_force || !pulling.Adjacent(src))
+		stop_pulling()
 		return
-	if(!pulling.Adjacent(src))
-		return
+	if(isliving(pulling))
+		var/mob/living/L = pulling
+		if(L.buckled && L.buckled.buckle_prevents_pull) //if they're buckled to something that disallows pulling, prevent it
+			stop_pulling()
+			return
 	if(A == loc && pulling.density)
 		return
 	if(!Process_Spacemove(get_dir(pulling.loc, A)))
@@ -452,3 +387,123 @@
 
 /mob/proc/update_gravity()
 	return
+/client/proc/check_has_body_select()
+	return mob && mob.hud_used && mob.hud_used.zone_select && istype(mob.hud_used.zone_select, /obj/screen/zone_sel)
+
+/client/verb/body_toggle_head()
+	set name = "body-toggle-head"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/next_in_line
+	switch(mob.zone_selected)
+		if(BODY_ZONE_HEAD)
+			next_in_line = BODY_ZONE_PRECISE_EYES
+		if(BODY_ZONE_PRECISE_EYES)
+			next_in_line = BODY_ZONE_PRECISE_MOUTH
+		else
+			next_in_line = BODY_ZONE_HEAD
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(next_in_line, mob)
+
+/client/verb/body_r_arm()
+	set name = "body-r-arm"
+	set hidden = 1
+	if(!check_has_body_select())
+		return
+
+	var/next_in_line
+	if(mob.zone_selected == BODY_ZONE_R_ARM)
+		next_in_line = BODY_ZONE_PRECISE_R_HAND
+	else
+		next_in_line = BODY_ZONE_R_ARM
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(next_in_line, mob)
+
+/client/verb/body_chest()
+	set name = "body-chest"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(BODY_ZONE_CHEST, mob)
+
+/client/verb/body_l_arm()
+	set name = "body-l-arm"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/next_in_line
+	if(mob.zone_selected == BODY_ZONE_L_ARM)
+		next_in_line = BODY_ZONE_PRECISE_L_HAND
+	else
+		next_in_line = BODY_ZONE_L_ARM
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(next_in_line, mob)
+
+/client/verb/body_r_leg()
+	set name = "body-r-leg"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/next_in_line
+	if(mob.zone_selected == BODY_ZONE_R_LEG)
+		next_in_line = BODY_ZONE_PRECISE_R_FOOT
+	else
+		next_in_line = BODY_ZONE_R_LEG
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(next_in_line, mob)
+
+/client/verb/body_groin()
+	set name = "body-groin"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(BODY_ZONE_PRECISE_GROIN, mob)
+
+/client/verb/body_l_leg()
+	set name = "body-l-leg"
+	set hidden = 1
+
+	if(!check_has_body_select())
+		return
+
+	var/next_in_line
+	if(mob.zone_selected == BODY_ZONE_L_LEG)
+		next_in_line = BODY_ZONE_PRECISE_L_FOOT
+	else
+		next_in_line = BODY_ZONE_L_LEG
+
+	var/obj/screen/zone_sel/selector = mob.hud_used.zone_select
+	selector.set_selected_zone(next_in_line, mob)
+
+/client/verb/toggle_walk_run()
+	set name = "toggle-walk-run"
+	set hidden = TRUE
+	set instant = TRUE
+	if(mob)
+		mob.toggle_move_intent(usr)
+
+/mob/proc/toggle_move_intent(mob/user)
+	if(m_intent == MOVE_INTENT_RUN)
+		m_intent = MOVE_INTENT_WALK
+	else
+		m_intent = MOVE_INTENT_RUN
+	if(hud_used && hud_used.static_inventory)
+		for(var/obj/screen/mov_intent/selector in hud_used.static_inventory)
+			selector.update_icon(src)

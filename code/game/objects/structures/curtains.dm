@@ -14,17 +14,20 @@
 	layer = SHOWER_OPEN_LAYER
 	opacity = 0
 
-/obj/structure/curtain/bullet_act(obj/item/projectile/P, def_zone)
-	if(!P.nodamage)
-		visible_message("<span class='warning'>[P] tears [src] down!</span>")
-		qdel(src)
-	else
-		..(P, def_zone)
-
 /obj/structure/curtain/attack_hand(mob/user)
 	playsound(get_turf(loc), "rustle", 15, 1, -5)
 	toggle()
 	..()
+
+/obj/structure/curtain/play_attack_sound(damage_amount, damage_type = BRUTE, damage_flag = 0)
+	switch(damage_type)
+		if(BRUTE)
+			if(damage_amount)
+				playsound(src.loc, 'sound/weapons/slash.ogg', 80, TRUE)
+			else
+				playsound(loc, 'sound/weapons/tap.ogg', 50, TRUE)
+		if(BURN)
+			playsound(loc, 'sound/items/welder.ogg', 80, TRUE)
 
 /obj/structure/curtain/proc/toggle()
 	set_opacity(!opacity)
@@ -55,7 +58,7 @@
 					return
 				anchored = TRUE
 				to_chat(user, "<span class='notice'>You screw [src] to the floor.</span>")
-	else if(istype(W, /obj/item/weapon/wirecutters))
+	else if(istype(W, /obj/item/wirecutters))
 		if(!anchored)
 			playsound(loc, W.usesound, 100, 1)
 			user.visible_message("<span class='warning'>[user] cuts apart [src].</span>", "<span class='notice'>You start to cut apart [src].</span>", "You hear cutting.")
@@ -65,9 +68,9 @@
 				to_chat(user, "<span class='notice'>You cut apart [src].</span>")
 				deconstruct()
 	else
-		. = ..()
+		return ..()
 
-/obj/structure/curtain/proc/deconstruct(disassembled = TRUE)
+/obj/structure/curtain/deconstruct(disassembled = TRUE)
 	new /obj/item/stack/sheet/cloth(loc, 2)
 	new /obj/item/stack/sheet/plastic(loc, 2)
 	new /obj/item/stack/rods(loc, 1)

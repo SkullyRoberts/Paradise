@@ -18,7 +18,7 @@
 /turf/simulated/floor/wood/try_replace_tile(obj/item/stack/tile/T, mob/user, params)
 	if(T.turf_type == type)
 		return
-	var/obj/item/weapon/tool
+	var/obj/item/tool
 	if(isscrewdriver(user.get_inactive_hand()))
 		tool = user.get_inactive_hand()
 	if(!tool && iscrowbar(user.get_inactive_hand()))
@@ -53,6 +53,11 @@
 				to_chat(user, "<span class='danger'>You forcefully pry off the planks, destroying them in the process.</span>")
 	return make_plating()
 
+/turf/simulated/floor/wood/cold
+	oxygen = 22
+	nitrogen = 82
+	temperature = 180
+
 /turf/simulated/floor/grass
 	name = "grass patch"
 	icon_state = "grass1"
@@ -72,42 +77,14 @@
 /turf/simulated/floor/grass/attackby(obj/item/C, mob/user, params)
 	if(..())
 		return
-	if(istype(C, /obj/item/weapon/shovel))
-		new /obj/item/weapon/ore/glass(src)
-		new /obj/item/weapon/ore/glass(src) //Make some sand if you shovel grass
+	if(istype(C, /obj/item/shovel))
+		new /obj/item/stack/ore/glass(src, 2) //Make some sand if you shovel grass
 		to_chat(user, "<span class='notice'>You shovel the grass.</span>")
 		playsound(src, 'sound/effects/shovel_dig.ogg', 50, 1)
 		make_plating()
 
-// NEEDS TO BE UPDATED
-/turf/simulated/floor/basalt //By your powers combined, I am captain planet
-	name = "volcanic floor"
-	icon = 'icons/turf/floors.dmi'
-	icon_state = "basalt0"
-	oxygen = 14
-	nitrogen = 23
-	temperature = 300
-
-/turf/simulated/floor/basalt/attackby(obj/item/W, mob/user, params)
-	if(..())
-		return
-	if(istype(W, /obj/item/weapon/shovel))
-		new /obj/item/weapon/ore/glass/basalt(src)
-		new /obj/item/weapon/ore/glass/basalt(src)
-		user.visible_message("<span class='notice'>[user] digs up [src].</span>", "<span class='notice'>You uproot [src].</span>")
-		playsound(src, 'sound/effects/shovel_dig.ogg', 50, 1)
-		make_plating()
-
-/turf/simulated/floor/basalt/New()
-	..()
-	if(prob(15))
-		icon_state = "basalt[rand(0, 12)]"
-		switch(icon_state)
-			if("basalt1", "basalt2", "basalt3")
-				set_light(1, 1)
-
 /turf/simulated/floor/carpet
-	name = "Carpet"
+	name = "carpet"
 	icon = 'icons/turf/floors/carpet.dmi'
 	icon_state = "carpet"
 	floor_tile = /obj/item/stack/tile/carpet
@@ -131,11 +108,11 @@
 		return 0
 	if(!broken && !burnt)
 		if(smooth)
-			smooth_icon(src)
+			queue_smooth(src)
 	else
 		make_plating()
 		if(smooth)
-			smooth_icon_neighbors(src)
+			queue_smooth_neighbors(src)
 
 /turf/simulated/floor/carpet/break_tile()
 	broken = 1
@@ -144,6 +121,9 @@
 /turf/simulated/floor/carpet/burn_tile()
 	burnt = 1
 	update_icon()
+
+/turf/simulated/floor/carpet/get_smooth_underlay_icon(mutable_appearance/underlay_appearance, turf/asking_turf, adjacency_dir)
+	return FALSE
 
 /turf/simulated/floor/carpet/black
 	icon = 'icons/turf/floors/carpet_black.dmi'
@@ -155,6 +135,7 @@
 	icon_state = "0"
 	floor_tile = /obj/item/stack/tile/fakespace
 	broken_states = list("damaged")
+	plane = PLANE_SPACE
 
 /turf/simulated/floor/fakespace/New()
 	..()
@@ -165,3 +146,9 @@
 	icon_state = "arcade"
 	floor_tile = /obj/item/stack/tile/arcade_carpet
 	smooth = SMOOTH_FALSE
+
+/turf/simulated/floor/fakespace/get_smooth_underlay_icon(mutable_appearance/underlay_appearance, turf/asking_turf, adjacency_dir)
+	underlay_appearance.icon = 'icons/turf/space.dmi'
+	underlay_appearance.icon_state = SPACE_ICON_STATE
+	underlay_appearance.plane = PLANE_SPACE
+	return TRUE

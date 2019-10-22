@@ -67,32 +67,32 @@ datum/hSB
 						P.wear_suit.plane = initial(P.wear_suit.plane)
 						P.wear_suit = null
 					P.wear_suit = new/obj/item/clothing/suit/space(P)
-					P.wear_suit.layer = 20
-					P.wear_suit.plane = HUD_PLANE
+					P.wear_suit.layer = ABOVE_HUD_LAYER
+					P.wear_suit.plane = ABOVE_HUD_PLANE
 					if(P.head)
 						P.head.loc = P.loc
 						P.head.layer = initial(P.head.layer)
 						P.head.plane = initial(P.head.plane)
 						P.head = null
 					P.head = new/obj/item/clothing/head/helmet/space(P)
-					P.head.layer = 20
-					P.head.plane = HUD_PLANE
+					P.head.layer = ABOVE_HUD_LAYER
+					P.head.plane = ABOVE_HUD_PLANE
 					if(P.wear_mask)
 						P.wear_mask.loc = P.loc
 						P.wear_mask.layer = initial(P.wear_mask.layer)
 						P.wear_mask.plane = initial(P.wear_mask.plane)
 						P.wear_mask = null
 					P.wear_mask = new/obj/item/clothing/mask/gas(P)
-					P.wear_mask.layer = 20
-					P.wear_mask.plane = HUD_PLANE
+					P.wear_mask.layer = ABOVE_HUD_LAYER
+					P.wear_mask.plane = ABOVE_HUD_PLANE
 					if(P.back)
 						P.back.loc = P.loc
 						P.back.layer = initial(P.back.layer)
 						P.back.plane = initial(P.back.plane)
 						P.back = null
-					P.back = new/obj/item/weapon/tank/jetpack(P)
-					P.back.layer = 20
-					P.back.plane = HUD_PLANE
+					P.back = new/obj/item/tank/jetpack(P)
+					P.back.layer = ABOVE_HUD_LAYER
+					P.back.plane = ABOVE_HUD_PLANE
 					P.internal = P.back
 				if("hsbmetal")
 					var/obj/item/stack/sheet/hsb = new/obj/item/stack/sheet/metal
@@ -126,13 +126,13 @@ datum/hSB
 					//var/obj/hsb = new/obj/watertank
 					//hsb.loc = usr.loc
 				if("hsbtoolbox")
-					var/obj/item/weapon/storage/hsb = new/obj/item/weapon/storage/toolbox/mechanical
-					for(var/obj/item/device/radio/T in hsb)
+					var/obj/item/storage/hsb = new/obj/item/storage/toolbox/mechanical
+					for(var/obj/item/radio/T in hsb)
 						qdel(T)
-					new/obj/item/weapon/crowbar (hsb)
+					new/obj/item/crowbar (hsb)
 					hsb.loc = usr.loc
 				if("hsbmedkit")
-					var/obj/item/weapon/storage/firstaid/hsb = new/obj/item/weapon/storage/firstaid/regular
+					var/obj/item/storage/firstaid/hsb = new/obj/item/storage/firstaid/regular
 					hsb.loc = usr.loc
 				if("hsbobj")
 					if(!hsboxspawn) return
@@ -140,17 +140,17 @@ datum/hSB
 					var/list/selectable = list()
 					for(var/O in typesof(/obj/item/))
 					//Note, these istypes don't work
-						if(istype(O, /obj/item/weapon/gun))
+						if(istype(O, /obj/item/gun))
 							continue
 						if(istype(O, /obj/item/assembly))
 							continue
-						if(istype(O, /obj/item/device/camera))
+						if(istype(O, /obj/item/camera))
 							continue
-						if(istype(O, /obj/item/weapon/cloaking_device))
+						if(istype(O, /obj/item/cloaking_device))
 							continue
-						if(istype(O, /obj/item/weapon/dummy))
+						if(istype(O, /obj/item/dummy))
 							continue
-						if(istype(O, /obj/item/weapon/melee/energy/sword/saber))
+						if(istype(O, /obj/item/melee/energy/sword/saber))
 							continue
 						if(istype(O, /obj/structure))
 							continue

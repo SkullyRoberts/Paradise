@@ -15,7 +15,6 @@
 	var/obj/machinery/atmospherics/node4
 
 	level = 1
-	layer = 2.4 //under wires with their 2.44
 
 /obj/machinery/atmospherics/pipe/manifold4w/New()
 	..()
@@ -90,13 +89,15 @@
 		node4.update_underlays()
 
 /obj/machinery/atmospherics/pipe/manifold4w/update_icon(var/safety = 0)
+	..()
+	
 	if(!check_icon_cache())
 		return
 
 	alpha = 255
 	overlays.Cut()
-	overlays += icon_manager.get_atmos_icon("manifold", , pipe_color, "4way" + icon_connect_type)
-	overlays += icon_manager.get_atmos_icon("manifold", , , "clamps_4way" + icon_connect_type)
+	overlays += GLOB.pipe_icon_manager.get_atmos_icon("manifold", , pipe_color, "4way" + icon_connect_type)
+	overlays += GLOB.pipe_icon_manager.get_atmos_icon("manifold", , , "clamps_4way" + icon_connect_type)
 	underlays.Cut()
 
 	var/turf/T = get_turf(src)
@@ -125,7 +126,7 @@
 // A check to make sure both nodes exist - self-delete if they aren't present
 /obj/machinery/atmospherics/pipe/manifold4w/check_nodes_exist()
 	if(!node1 && !node2 && !node3 && !node4)
-		Deconstruct()
+		deconstruct()
 		return 0 // 0: No nodes exist
 	// 1: 1-4 nodes exist, we continue existing
 	return 1
@@ -134,7 +135,7 @@
 	if(level == 1 && istype(loc, /turf/simulated))
 		invisibility = i ? 101 : 0
 
-/obj/machinery/atmospherics/pipe/manifold4w/initialize()
+/obj/machinery/atmospherics/pipe/manifold4w/atmos_init()
 	..()
 	for(var/D in cardinal)
 		for(var/obj/machinery/atmospherics/target in get_step(src, D))

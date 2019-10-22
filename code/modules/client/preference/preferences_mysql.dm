@@ -16,7 +16,12 @@
 					lastchangelog,
 					windowflashing,
 					ghost_anonsay,
-					exp
+					exp,
+					clientfps,
+					atklog,
+					fuid,
+					afk_watch,
+					parallax
 					FROM [format_table_name("player")]
 					WHERE ckey='[C.ckey]'"}
 					)
@@ -46,12 +51,17 @@
 		windowflashing = text2num(query.item[14])
 		ghost_anonsay = text2num(query.item[15])
 		exp = query.item[16]
+		clientfps = text2num(query.item[17])
+		atklog = text2num(query.item[18])
+		fuid = text2num(query.item[19])
+		afk_watch = text2num(query.item[20])
+		parallax = text2num(query.item[21])
 
 	//Sanitize
 	ooccolor		= sanitize_hexcolor(ooccolor, initial(ooccolor))
 	UI_style		= sanitize_inlist(UI_style, list("White", "Midnight"), initial(UI_style))
 	default_slot	= sanitize_integer(default_slot, 1, max_save_slots, initial(default_slot))
-	toggles			= sanitize_integer(toggles, 0, 65535, initial(toggles))
+	toggles			= sanitize_integer(toggles, 0, TOGGLES_TOTAL, initial(toggles))
 	sound			= sanitize_integer(sound, 0, 65535, initial(sound))
 	UI_style_color	= sanitize_hexcolor(UI_style_color, initial(UI_style_color))
 	UI_style_alpha	= sanitize_integer(UI_style_alpha, 0, 255, initial(UI_style_alpha))
@@ -63,6 +73,11 @@
 	windowflashing = sanitize_integer(windowflashing, 0, 1, initial(windowflashing))
 	ghost_anonsay = sanitize_integer(ghost_anonsay, 0, 1, initial(ghost_anonsay))
 	exp	= sanitize_text(exp, initial(exp))
+	clientfps = sanitize_integer(clientfps, 0, 1000, initial(clientfps))
+	atklog = sanitize_integer(atklog, 0, 100, initial(atklog))
+	fuid = sanitize_integer(fuid, 0, 10000000, initial(fuid))
+	afk_watch = sanitize_integer(afk_watch, 0, 1, initial(afk_watch))
+	parallax = sanitize_integer(parallax, 0, 16, initial(parallax))
 	return 1
 
 /datum/preferences/proc/save_preferences(client/C)
@@ -81,7 +96,8 @@
 					UI_style_alpha='[UI_style_alpha]',
 					be_role='[sanitizeSQL(list2params(be_special))]',
 					default_slot='[default_slot]',
-					toggles='[toggles]',
+					toggles='[num2text(toggles, Ceiling(log(10, (TOGGLES_TOTAL))))]',
+					atklog='[atklog]',
 					sound='[sound]',
 					randomslot='[randomslot]',
 					volume='[volume]',
@@ -89,7 +105,11 @@
 					show_ghostitem_attack='[show_ghostitem_attack]',
 					lastchangelog='[lastchangelog]',
 					windowflashing='[windowflashing]',
-					ghost_anonsay='[ghost_anonsay]'
+					ghost_anonsay='[ghost_anonsay]',
+					clientfps='[clientfps]',
+					atklog='[atklog]',
+					afk_watch='[afk_watch]',
+					parallax='[parallax]'
 					WHERE ckey='[C.ckey]'"}
 					)
 
@@ -243,7 +263,7 @@
 		autohiss_mode = text2num(query.item[52])
 
 	//Sanitize
-	var/datum/species/SP = all_species[species]
+	var/datum/species/SP = GLOB.all_species[species]
 	metadata		= sanitize_text(metadata, initial(metadata))
 	real_name		= reject_bad_name(real_name, 1)
 	if(isnull(species)) species = "Human"
@@ -263,12 +283,12 @@
 	for(var/marking_location in m_colours)
 		m_colours[marking_location] = sanitize_hexcolor(m_colours[marking_location], DEFAULT_MARKING_COLOURS[marking_location])
 	hacc_colour		= sanitize_hexcolor(hacc_colour)
-	h_style			= sanitize_inlist(h_style, hair_styles_public_list, initial(h_style))
-	f_style			= sanitize_inlist(f_style, facial_hair_styles_list, initial(f_style))
+	h_style			= sanitize_inlist(h_style, GLOB.hair_styles_public_list, initial(h_style))
+	f_style			= sanitize_inlist(f_style, GLOB.facial_hair_styles_list, initial(f_style))
 	for(var/marking_location in m_styles)
-		m_styles[marking_location] = sanitize_inlist(m_styles[marking_location], marking_styles_list, DEFAULT_MARKING_STYLES[marking_location])
-	ha_style		= sanitize_inlist(ha_style, head_accessory_styles_list, initial(ha_style))
-	alt_head		= sanitize_inlist(alt_head, alt_heads_list, initial(alt_head))
+		m_styles[marking_location] = sanitize_inlist(m_styles[marking_location], GLOB.marking_styles_list, DEFAULT_MARKING_STYLES[marking_location])
+	ha_style		= sanitize_inlist(ha_style, GLOB.head_accessory_styles_list, initial(ha_style))
+	alt_head		= sanitize_inlist(alt_head, GLOB.alt_heads_list, initial(alt_head))
 	e_colour		= sanitize_hexcolor(e_colour)
 	underwear		= sanitize_text(underwear, initial(underwear))
 	undershirt		= sanitize_text(undershirt, initial(undershirt))
@@ -473,7 +493,10 @@
 
 /datum/preferences/proc/SetChangelog(client/C,hash)
 	lastchangelog=hash
-	winset(C, "rpane.changelog", "background-color=none;font-style=")
+	if(preferences_datums[C.ckey].toggles & UI_DARKMODE)
+		winset(C, "rpane.changelog", "background-color=#40628a;font-color=#ffffff;font-style=none")
+	else
+		winset(C, "rpane.changelog", "background-color=none;font-style=none")
 	var/DBQuery/query = dbcon.NewQuery("UPDATE [format_table_name("player")] SET lastchangelog='[lastchangelog]' WHERE ckey='[C.ckey]'")
 	if(!query.Execute())
 		var/err = query.ErrorMsg()

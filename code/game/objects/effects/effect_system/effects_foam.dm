@@ -24,12 +24,12 @@
 	spawn(3 + metal*3)
 		process()
 	spawn(120)
-		processing_objects.Remove(src)
+		STOP_PROCESSING(SSobj, src)
 		sleep(30)
 
 		if(metal)
 			var/turf/T = get_turf(src)
-			if(istype(T, /turf/space))
+			if(istype(T, /turf/space) && !istype(T, /turf/space/transit))
 				T.ChangeTurf(/turf/simulated/floor/plating/metalfoam)
 				var/turf/simulated/floor/plating/metalfoam/MF = get_turf(src)
 				MF.metal = metal
@@ -76,22 +76,25 @@
 		F = new /obj/effect/particle_effect/foam(T, metal)
 		F.amount = amount
 		if(!metal)
-			F.create_reagents(15)
+			F.create_reagents(25)
 			if(reagents)
 				for(var/datum/reagent/R in reagents.reagent_list)
-					F.reagents.add_reagent(R.id, min(R.volume, 3), R.data, reagents.chem_temp)
+					F.reagents.add_reagent(R.id, min(R.volume, 5), R.data, reagents.chem_temp)
 				F.color = mix_color_from_reagents(reagents.reagent_list)
 
 // foam disolves when heated
 // except metal foams
-/obj/effect/particle_effect/foam/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume)
+/obj/effect/particle_effect/foam/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume, global_overlay = TRUE) //Don't heat the reagents inside
+	return
+
+/obj/effect/particle_effect/foam/temperature_expose(datum/gas_mixture/air, exposed_temperature, exposed_volume) // overriden to prevent weird behaviors with heating reagents inside
 	if(!metal && prob(max(0, exposed_temperature - 475)))
 		flick("[icon_state]-disolve", src)
 
 		spawn(5)
 			qdel(src)
 
-/obj/effect/particle_effect/foam/Crossed(atom/movable/AM)
+/obj/effect/particle_effect/foam/Crossed(atom/movable/AM, oldloc)
 	if(metal)
 		return
 
@@ -146,14 +149,14 @@
 		F.amount = amount
 
 		if(!metal)			// don't carry other chemicals if a metal foam
-			F.create_reagents(15)
+			F.create_reagents(25)
 
 			if(carried_reagents)
 				for(var/id in carried_reagents)
 					if(banned_reagents.Find("[id]"))
 						continue
 					var/datum/reagent/reagent_volume = carried_reagents[id]
-					F.reagents.add_reagent(id, min(reagent_volume, 3), null, temperature)
+					F.reagents.add_reagent(id, min(reagent_volume, 5), null, temperature)
 				F.color = mix_color_from_reagents(F.reagents.reagent_list)
 			else
 				F.reagents.add_reagent("cleaner", 1)
@@ -163,86 +166,55 @@
 // dense and opaque, but easy to break
 
 /obj/structure/foamedmetal
-	icon = 'icons/effects/effects.dmi'
-	icon_state = "metalfoam"
-	density = 1
-	opacity = 1 	// changed in New()
-	anchored = 1
 	name = "foamed metal"
 	desc = "A lightweight foamed metal wall."
+	icon = 'icons/effects/effects.dmi'
+	icon_state = "metalfoam"
+	resistance_flags = FIRE_PROOF | ACID_PROOF
+	density = TRUE
+	opacity = TRUE	// changed in New()
+	anchored = TRUE
+	max_integrity = 20
 	var/metal = MFOAM_ALUMINUM
 
-/obj/structure/foamedmetal/initialize()
+/obj/structure/foamedmetal/Initialize()
 	..()
 	air_update_turf(1)
 
 /obj/structure/foamedmetal/Destroy()
-	density = 0
-	air_update_turf(1)
-	return ..()
+	var/turf/T = get_turf(src)
+	. = ..()
+	T.air_update_turf(TRUE)
 
 /obj/structure/foamedmetal/Move()
 	var/turf/T = loc
 	..()
 	move_update_air(T)
 
+/obj/structure/foamedmetal/play_attack_sound(damage_amount, damage_type = BRUTE, damage_flag = 0)
+	playsound(src.loc, 'sound/weapons/tap.ogg', 100, TRUE)
+
 /obj/structure/foamedmetal/proc/updateicon()
 	if(metal == MFOAM_ALUMINUM)
 		icon_state = "metalfoam"
+		max_integrity = 20
+		obj_integrity = max_integrity
 	else
 		icon_state = "ironfoam"
-
-/obj/structure/foamedmetal/ex_act(severity)
-	qdel(src)
-
-/obj/structure/foamedmetal/blob_act()
-	qdel(src)
-
-/obj/structure/foamedmetal/bullet_act()
-	if(metal==MFOAM_ALUMINUM || prob(50))
-		qdel(src)
+		max_integrity = 50
+		obj_integrity = max_integrity
 
 /obj/structure/foamedmetal/attack_hand(mob/user)
 	user.changeNext_move(CLICK_CD_MELEE)
-	user.do_attack_animation(src)
-	if((HULK in user.mutations) || (prob(75 - metal*25)))
-		user.visible_message("<span class='warning'>[user] smashes through \the [src].</span>", "<span class='notice'>You smash through \the [src].</span>")
+	user.do_attack_animation(src, ATTACK_EFFECT_PUNCH)
+	if(prob(75 - metal * 25))
+		user.visible_message("<span class='warning'>[user] smashes through [src].</span>", "<span class='notice'>You smash through [src].</span>")
 		qdel(src)
 	else
 		to_chat(user, "<span class='notice'>You hit the metal foam but bounce off it.</span>")
+		playsound(loc, 'sound/weapons/tap.ogg', 100, 1)
 
-/obj/structure/foamedmetal/attackby(obj/item/I, mob/user, params)
-	user.changeNext_move(CLICK_CD_MELEE)
-	user.do_attack_animation(src)
-	if(istype(I, /obj/item/weapon/grab))
-		var/obj/item/weapon/grab/G = I
-		G.affecting.loc = src.loc
-		user.visible_message("<span class='warning'>[G.assailant] smashes [G.affecting] through the foamed metal wall.</span>")
-		qdel(I)
-		qdel(src)
-		return
-
-	if(prob(I.force*20 - metal*25))
-		user.visible_message("<span class='warning'>[user] smashes through the foamed metal with \the [I].</span>", "<span class='notice'>You smash through the foamed metal with \the [I].</span>")
-		qdel(src)
-	else
-		to_chat(user, "<span class='warning'>You hit the metal foam to no effect.</span>")
-
-/obj/structure/foamedmetal/attack_animal(mob/living/simple_animal/M)
-	M.do_attack_animation(src)
-	if(M.melee_damage_upper == 0)
-		M.visible_message("<span class='notice'>[M] nudges \the [src].</span>")
-	else
-		if(M.attack_sound)
-			playsound(loc, M.attack_sound, 50, 1, 1)
-		M.visible_message("<span class='danger'>\The [M] [M.attacktext] [src]!</span>")
-		qdel(src)
-
-/obj/structure/foamedmetal/attack_alien(mob/living/carbon/alien/humanoid/M)
-	M.visible_message("<span class='danger'>[M] tears apart \the [src]!</span>");
-	qdel(src)
-
-/obj/structure/foamedmetal/CanPass(atom/movable/mover, turf/target, height=1.5)
+/obj/structure/foamedmetal/CanPass(atom/movable/mover, turf/target)
 	return !density
 
 /obj/structure/foamedmetal/CanAtmosPass()

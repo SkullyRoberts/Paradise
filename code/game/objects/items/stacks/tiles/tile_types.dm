@@ -23,7 +23,7 @@
 
 /obj/item/stack/tile/attackby(obj/item/W, mob/user, params)
 	if(iswelder(W))
-		var/obj/item/weapon/weldingtool/WT = W
+		var/obj/item/weldingtool/WT = W
 
 		if(is_hot(W) && !mineralType)
 			to_chat(user, "<span class='warning'>You can not reform this!</span>")
@@ -39,6 +39,9 @@
 				atmos_spawn_air(SPAWN_HEAT | SPAWN_TOXINS, 5)
 				user.visible_message("<span class='warning'>[user.name] sets the plasma tiles on fire!</span>", \
 									"<span class='warning'>You set the plasma tiles on fire!</span>")
+				message_admins("Plasma tiles ignited by [key_name_admin(user)](<A HREF='?_src_=holder;adminmoreinfo=\ref[user]'>?</A>) (<A HREF='?_src_=holder;adminplayerobservefollow=\ref[user]'>FLW</A>) in ([x],[y],[z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[x];Y=[y];Z=[z]'>JMP</a>)",0,1)
+				log_game("Plasma tiles ignited by [key_name(user)] in ([x],[y],[z])")
+				investigate_log("was <font color='red'><b>ignited</b></font> by [key_name(user)]","atmos")
 				qdel(src)
 				return
 
@@ -78,7 +81,7 @@
 	icon_state = "tile_grass"
 	origin_tech = "biotech=1"
 	turf_type = /turf/simulated/floor/grass
-	burn_state = FLAMMABLE
+	resistance_flags = FLAMMABLE
 
 //Wood
 /obj/item/stack/tile/wood
@@ -89,7 +92,7 @@
 	icon_state = "tile-wood"
 	origin_tech = "biotech=1"
 	turf_type = /turf/simulated/floor/wood
-	burn_state = FLAMMABLE
+	resistance_flags = FLAMMABLE
 
 //Carpets
 /obj/item/stack/tile/carpet
@@ -98,7 +101,7 @@
 	desc = "A piece of carpet. It is the same size as a floor tile"
 	icon_state = "tile-carpet"
 	turf_type = /turf/simulated/floor/carpet
-	burn_state = FLAMMABLE
+	resistance_flags = FLAMMABLE
 
 /obj/item/stack/tile/carpet/black
 	name = "black carpet"
@@ -120,6 +123,8 @@
 	flags = CONDUCT
 	turf_type = /turf/simulated/floor/plasteel
 	mineralType = "metal"
+	armor = list("melee" = 0, "bullet" = 0, "laser" = 0, "energy" = 0, "bomb" = 0, "bio" = 0, "rad" = 0, "fire" = 100, "acid" = 70)
+	resistance_flags = FIRE_PROOF
 
 //Light
 /obj/item/stack/tile/light
@@ -140,7 +145,7 @@
 	desc = "A piece of carpet with a convincing star pattern."
 	icon_state = "tile_space"
 	turf_type = /turf/simulated/floor/fakespace
-	burn_state = FLAMMABLE
+	resistance_flags = FLAMMABLE
 	merge_type = /obj/item/stack/tile/fakespace
 
 /obj/item/stack/tile/fakespace/loaded
@@ -167,6 +172,20 @@
 	icon_state = "tile_pod"
 	turf_type = /turf/simulated/floor/pod
 
+/obj/item/stack/tile/pod/light
+	name = "light pod floor tile"
+	singular_name = "light pod floor tile"
+	desc = "A lightly colored grooved floor tile."
+	icon_state = "tile_podlight"
+	turf_type = /turf/simulated/floor/pod
+
+/obj/item/stack/tile/pod/dark
+	name = "dark pod floor tile"
+	singular_name = "dark pod floor tile"
+	desc = "A darkly colored grooved floor tile."
+	icon_state = "tile_poddark"
+	turf_type = /turf/simulated/floor/pod/dark
+
 /obj/item/stack/tile/arcade_carpet
 	name = "arcade carpet"
 	singular_name = "arcade carpet"
@@ -174,7 +193,7 @@
 	icon_state = "tile_space"
 	turf_type = /turf/simulated/floor/carpet/arcade
 	merge_type = /obj/item/stack/tile/arcade_carpet
-	burn_state = FLAMMABLE
+	resistance_flags = FLAMMABLE
 
 /obj/item/stack/tile/arcade_carpet/loaded
 	amount = 20

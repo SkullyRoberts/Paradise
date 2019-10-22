@@ -52,7 +52,7 @@
 /datum/chemical_reaction/ironfoam/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
 
-	holder.my_atom.visible_message("<span class='warning>The solution spews out a metalic foam!</span>")
+	holder.my_atom.visible_message("<span class='warning'>The solution spews out a metalic foam!</span>")
 
 	var/datum/effect_system/foam_spread/s = new()
 	s.set_up(created_volume, location, holder, MFOAM_IRON)
@@ -74,7 +74,7 @@
 	result = "diethylamine"
 	required_reagents = list ("ammonia" = 1, "ethanol" = 1)
 	result_amount = 2
-	min_temp = 374
+	min_temp = T0C + 100
 	mix_message = "A horrible smell pours forth from the mixture."
 
 /datum/chemical_reaction/space_cleaner
@@ -93,17 +93,18 @@
 	result_amount = 2
 	mix_message = "The mixture gives off a sharp acidic tang."
 
-/datum/chemical_reaction/plastication
-	name = "Plastic"
-	id = "solidplastic"
+/datum/chemical_reaction/plastic_polymers
+	name = "plastic polymers"
+	id = "plastic_polymers"
 	result = null
-	required_reagents = list("facid" = 10, "plasticide" = 20)
+	required_reagents = list("oil" = 5, "sacid" = 2, "ash" = 3)
+	min_temp = T0C + 100
 	result_amount = 1
 
-/datum/chemical_reaction/plastication/on_reaction(datum/reagents/holder)
-	var/obj/item/stack/sheet/metal/M = new /obj/item/stack/sheet/plastic
-	M.amount = 10
-	M.forceMove(get_turf(holder.my_atom))
+/datum/chemical_reaction/plastic_polymers/on_reaction(datum/reagents/holder, created_volume)
+	var/obj/item/stack/sheet/plastic/P = new /obj/item/stack/sheet/plastic
+	P.amount = 10
+	P.forceMove(get_turf(holder.my_atom))
 
 /datum/chemical_reaction/lube
 	name = "Space Lube"
@@ -170,16 +171,6 @@
 	mix_message = "The mixture bubbles and gives off an unpleasant medicinal odor."
 	mix_sound = 'sound/goonstation/misc/drinkfizz.ogg'
 
-/datum/chemical_reaction/ash
-	name = "Ash"
-	id = "ash"
-	result = "ash"
-	required_reagents = list("oil" = 1)
-	result_amount = 0.5
-	min_temp = 480
-	mix_sound = null
-	no_message = 1
-
 /datum/chemical_reaction/colorful_reagent
 	name = "colorful_reagent"
 	id = "colorful_reagent"
@@ -194,11 +185,11 @@
 	result = null
 	required_reagents = list("nutriment" = 1, "colorful_reagent" = 1, "strange_reagent" = 1, "blood" = 1)
 	result_amount = 3
-	min_temp = 374
+	min_temp = T0C + 100
 
 /datum/chemical_reaction/corgium/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
-	new /mob/living/simple_animal/pet/corgi(location)
+	new /mob/living/simple_animal/pet/dog/corgi(location)
 	..()
 
 /datum/chemical_reaction/flaptonium
@@ -207,7 +198,7 @@
 	result = null
 	required_reagents = list("egg" = 1, "colorful_reagent" = 1, "chicken_soup" = 1, "strange_reagent" = 1, "blood" = 1)
 	result_amount = 5
-	min_temp = 374
+	min_temp = T0C + 100
 	mix_message = "The substance turns an airy sky-blue and foams up into a new shape."
 
 /datum/chemical_reaction/flaptonium/on_reaction(datum/reagents/holder, created_volume)
@@ -238,33 +229,25 @@
 	result_amount = 3
 	mix_message = "The liquid becomes amazingly furry and smells peculiar."
 
-/datum/chemical_reaction/fartonium
-	name = "Fartonium"
-	id = "fartonium"
-	result = "fartonium"
-	required_reagents = list("fake_cheese" = 1, "beans" = 1, "????" = 1, "egg" = 1)
-	result_amount = 2
-	mix_message = "The substance makes a little 'toot' noise and starts to smell pretty bad."
-
 /datum/chemical_reaction/soapification
 	name = "Soapification"
 	id = "soapification"
 	result = null
 	required_reagents = list("liquidgibs" = 10, "lye"  = 10) // requires two scooped gib tiles
-	min_temp = 374
+	min_temp = T0C + 100
 	result_amount = 1
 
 
 /datum/chemical_reaction/soapification/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
-	new /obj/item/weapon/soap/homemade(location)
+	new /obj/item/soap/homemade(location)
 
 /datum/chemical_reaction/candlefication
 	name = "Candlefication"
 	id = "candlefication"
 	result = null
 	required_reagents = list("liquidgibs" = 5, "oxygen"  = 5) //
-	min_temp = 374
+	min_temp = T0C + 100
 	result_amount = 1
 
 /datum/chemical_reaction/candlefication/on_reaction(datum/reagents/holder, created_volume)
@@ -280,7 +263,7 @@
 
 /datum/chemical_reaction/meatification/on_reaction(datum/reagents/holder, created_volume)
 	var/location = get_turf(holder.my_atom)
-	new /obj/item/weapon/reagent_containers/food/snacks/meat/slab/meatproduct(location)
+	new /obj/item/reagent_containers/food/snacks/meat/slab/meatproduct(location)
 
 /datum/chemical_reaction/lye
 	name = "lye"
@@ -296,6 +279,18 @@
 	required_reagents = list("hugs" = 1, "chocolate" = 1)
 	result_amount = 2
 	mix_message = "The substance gives off a lovely scent!"
+
+/datum/chemical_reaction/jestosterone
+	name = "Jestosterone"
+	id = "jestosterone"
+	result = "jestosterone"
+	required_reagents = list("blood" = 1, "sodiumchloride" = 1, "banana" = 1, "lube" = 1, "space_drugs" = 1) //Or one freshly-squeezed clown
+	min_temp = T0C + 100
+	result_amount = 5
+	mix_message = "The substance quickly shifts colour, cycling from red, to yellow, to green, to blue, and finally settles at a vibrant fuchsia."
+
+/datum/chemical_reaction/jestosterone/on_reaction(datum/reagents/holder, created_volume)
+	playsound(get_turf(holder.my_atom), 'sound/items/bikehorn.ogg', 50, 1)
 
 /datum/chemical_reaction/royal_bee_jelly
 	name = "royal bee jelly"
@@ -333,7 +328,7 @@
 	result = "ice"
 	required_reagents = list("water" = 1)
 	result_amount = 1
-	max_temp = 273
+	max_temp = T0C
 	mix_message = "Ice forms as the water freezes."
 	mix_sound = null
 
@@ -343,7 +338,7 @@
 	result = "water"
 	required_reagents = list("ice" = 1)
 	result_amount = 1
-	min_temp = 301 // In Space.....ice melts at 82F...don't ask
+	min_temp = T0C + 29 // In Space.....ice melts at 82F...don't ask
 	mix_message = "Water pools as the ice melts."
 	mix_sound = null
 

@@ -3,33 +3,38 @@
 	desc = "It measures something."
 	icon = 'icons/obj/meter.dmi'
 	icon_state = "meterX"
+
+	layer = GAS_PUMP_LAYER
+
 	var/obj/machinery/atmospherics/pipe/target = null
-	anchored = 1
+	anchored = TRUE
+	max_integrity = 150
+	armor = list("melee" = 0, "bullet" = 0, "laser" = 0, "energy" = 100, "bomb" = 0, "bio" = 100, "rad" = 100, "fire" = 40, "acid" = 0)
 	power_channel = ENVIRON
-	var/frequency = 0
+	var/frequency = ATMOS_DISTRO_FREQ
 	var/id
 	var/id_tag
-	use_power = 1
+	use_power = IDLE_POWER_USE
 	idle_power_usage = 2
 	active_power_usage = 5
 	req_one_access_txt = "24;10"
-	Mtoollink = 1
+	Mtoollink = TRUE
 	settagwhitelist = list("id_tag")
 
 /obj/machinery/meter/New()
 	..()
-	atmos_machinery += src
+	SSair.atmos_machinery += src
 	target = locate(/obj/machinery/atmospherics/pipe) in loc
 	if(id && !id_tag)//i'm not dealing with further merge conflicts, fuck it
 		id_tag = id
 	return 1
 
 /obj/machinery/meter/Destroy()
-	atmos_machinery -= src
+	SSair.atmos_machinery -= src
 	target = null
 	return ..()
 
-/obj/machinery/meter/initialize()
+/obj/machinery/meter/Initialize()
 	..()
 	if(!target)
 		target = locate(/obj/machinery/atmospherics/pipe) in loc
@@ -64,7 +69,7 @@
 		icon_state = "meter4"
 
 	if(frequency)
-		var/datum/radio_frequency/radio_connection = radio_controller.return_frequency(frequency)
+		var/datum/radio_frequency/radio_connection = SSradio.return_frequency(frequency)
 
 		if(!radio_connection) return
 
@@ -109,7 +114,7 @@
 	else
 		t += "The connect error light is blinking."
 
-	to_chat(user, t)
+	. = list(t)
 
 /obj/machinery/meter/Click()
 	if(istype(usr, /mob/living/silicon/ai)) // ghosts can call ..() for examine
@@ -118,12 +123,12 @@
 
 	return ..()
 
-/obj/machinery/meter/attackby(var/obj/item/weapon/W as obj, var/mob/user as mob, params)
-	if(istype(W, /obj/item/device/multitool))
+/obj/machinery/meter/attackby(var/obj/item/W as obj, var/mob/user as mob, params)
+	if(istype(W, /obj/item/multitool))
 		update_multitool_menu(user)
 		return 1
 
-	if(!istype(W, /obj/item/weapon/wrench))
+	if(!istype(W, /obj/item/wrench))
 		return ..()
 	playsound(loc, W.usesound, 50, 1)
 	to_chat(user, "<span class='notice'>You begin to unfasten \the [src]...</span>")
@@ -132,8 +137,17 @@
 			"[user] unfastens \the [src].", \
 			"<span class='notice'>You have unfastened \the [src].</span>", \
 			"You hear ratchet.")
-		new /obj/item/pipe_meter(src.loc)
-		qdel(src)
+		deconstruct(TRUE)
+
+/obj/machinery/meter/deconstruct(disassembled = TRUE)
+	if(!(flags & NODECONSTRUCT))
+		new /obj/item/pipe_meter(loc)
+	qdel(src)
+
+/obj/machinery/meter/singularity_pull(S, current_size)
+	..()
+	if(current_size >= STAGE_FIVE)
+		deconstruct()
 
 // TURF METER - REPORTS A TILE'S AIR CONTENTS
 
@@ -143,15 +157,15 @@
 	return 1
 
 
-/obj/machinery/meter/turf/initialize()
+/obj/machinery/meter/turf/Initialize()
 	if(!target)
 		target = loc
 	..()
 
-/obj/machinery/meter/turf/attackby(var/obj/item/weapon/W as obj, var/mob/user as mob, params)
+/obj/machinery/meter/turf/attackby(var/obj/item/W as obj, var/mob/user as mob, params)
 	return
 
-/obj/machinery/meter/multitool_menu(var/mob/user, var/obj/item/device/multitool/P)
+/obj/machinery/meter/multitool_menu(var/mob/user, var/obj/item/multitool/P)
 	return {"
 	<b>Main</b>
 	<ul>

@@ -1,16 +1,29 @@
 /obj/item/organ/internal/liver/vox
+	name = "vox liver"
+	icon = 'icons/obj/species_organs/vox.dmi'
 	alcohol_intensity = 1.6
-	species = "Vox"
+	sterile = TRUE
 
+/obj/item/organ/internal/eyes/vox
+	name = "vox eyeballs"
+	icon = 'icons/obj/species_organs/vox.dmi'
+	sterile = TRUE
 
-/obj/item/organ/internal/stack
+/obj/item/organ/internal/heart/vox
+	name = "vox heart"
+	icon = 'icons/obj/species_organs/vox.dmi'
+	sterile = TRUE
+
+/obj/item/organ/internal/brain/vox
 	name = "cortical stack"
-	icon_state = "brain-prosthetic"
-	parent_organ = "head"
-	organ_tag = "stack"
-	slot = "vox_stack"
-	robotic = 2
-	vital = 1
+	desc = "A peculiarly advanced bio-electronic device that seems to hold the memories and identity of a Vox."
+	icon = 'icons/obj/species_organs/vox.dmi'
+	icon_state = "cortical-stack"
+	mmi_icon = 'icons/obj/species_organs/vox.dmi'
+	mmi_icon_state = "mmi_full"
+	sterile = TRUE
 
-/obj/item/organ/internal/stack/vox
-	name = "vox cortical stack"
+/obj/item/organ/internal/kidneys/vox
+	name = "vox kidneys"
+	icon = 'icons/obj/species_organs/vox.dmi'
+	sterile = TRUE

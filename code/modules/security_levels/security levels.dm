@@ -27,6 +27,19 @@
 
 	//Will not be announced if you try to set to the same level as it already is
 	if(level >= SEC_LEVEL_GREEN && level <= SEC_LEVEL_DELTA && level != security_level)
+		if(level >= SEC_LEVEL_RED && security_level < SEC_LEVEL_RED)
+			// Mark down this time to prevent shuttle cheese
+			SSshuttle.emergency_sec_level_time = world.time
+
+		// Reset gamma borgs if the new security level is lower than Gamma.
+		if(level < SEC_LEVEL_GAMMA)
+			for(var/M in GLOB.silicon_mob_list)
+				if(isrobot(M))
+					var/mob/living/silicon/robot/R = M
+					if(istype(R.module, /obj/item/robot_module/combat) && !R.crisis)
+						R.reset_module()
+						to_chat(R, "<span class='warning'>Crisis mode deactivated. The combat module is no longer available and your module has been reset.</span>")
+
 		switch(level)
 			if(SEC_LEVEL_GREEN)
 				security_announcement_down.Announce("All threats to the station have passed. All weapons need to be holstered and privacy laws are once again fully enforced.","Attention! Security level lowered to green.")
@@ -34,7 +47,7 @@
 
 				post_status("alert", "outline")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_green")
@@ -48,7 +61,7 @@
 
 				post_status("alert", "outline")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_blue")
@@ -60,61 +73,61 @@
 					security_announcement_down.Announce("The station's self-destruct mechanism has been deactivated, but there is still an immediate and serious threat to the station. Security may have weapons unholstered at all times. Random searches are allowed and advised.","Attention! Code Red!")
 				security_level = SEC_LEVEL_RED
 
-				var/obj/machinery/door/airlock/highsecurity/red/R = locate(/obj/machinery/door/airlock/highsecurity/red) in airlocks
+				var/obj/machinery/door/airlock/highsecurity/red/R = locate(/obj/machinery/door/airlock/highsecurity/red) in GLOB.airlocks
 				if(R && is_station_level(R.z))
 					R.locked = 0
 					R.update_icon()
 
 				post_status("alert", "redalert")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_red")
 
 			if(SEC_LEVEL_GAMMA)
-				security_announcement_up.Announce("Central Command has ordered the Gamma security level on the station. Security is to have weapons equipped at all times, and all civilians are to immediately seek their nearest head for transportation to a secure location. The station's Gamma armory has been unlocked and is ready for use.","Attention! Gamma security level activated!")
+				security_announcement_up.Announce("Central Command has ordered the Gamma security level on the station. Security is to have weapons equipped at all times, and all civilians are to immediately seek their nearest head for transportation to a secure location. The station's Gamma armory has been unlocked and is ready for use.","Attention! Gamma security level activated!", new_sound = sound('sound/effects/new_siren.ogg'))
 				security_level = SEC_LEVEL_GAMMA
 
 				move_gamma_ship()
 
 				if(security_level < SEC_LEVEL_RED)
-					for(var/obj/machinery/door/airlock/highsecurity/red/R in airlocks)
+					for(var/obj/machinery/door/airlock/highsecurity/red/R in GLOB.airlocks)
 						if(is_station_level(R.z))
 							R.locked = 0
 							R.update_icon()
 
-				for(var/obj/machinery/door/airlock/hatch/gamma/H in airlocks)
+				for(var/obj/machinery/door/airlock/hatch/gamma/H in GLOB.airlocks)
 					if(is_station_level(H.z))
 						H.locked = 0
 						H.update_icon()
 
 				post_status("alert", "gammaalert")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_gamma")
 						FA.update_icon()
 
 			if(SEC_LEVEL_EPSILON)
-				security_announcement_up.Announce("Central Command has ordered the Epsilon security level on the station. Consider all contracts terminated.","Attention! Epsilon security level activated!")
+				security_announcement_up.Announce("Central Command has ordered the Epsilon security level on the station. Consider all contracts terminated.","Attention! Epsilon security level activated!", new_sound = sound('sound/effects/purge_siren.ogg'))
 				security_level = SEC_LEVEL_EPSILON
 
 				post_status("alert", "epsilonalert")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_epsilon")
 
 			if(SEC_LEVEL_DELTA)
-				security_announcement_up.Announce("The station's self-destruct mechanism has been engaged. All crew are instructed to obey all instructions given by heads of staff. Any violations of these orders can be punished by death. This is not a drill.","Attention! Delta security level reached!")
+				security_announcement_up.Announce("The station's self-destruct mechanism has been engaged. All crew are instructed to obey all instructions given by heads of staff. Any violations of these orders can be punished by death. This is not a drill.","Attention! Delta security level reached!", new_sound = sound('sound/effects/deltaalarm.ogg'))
 				security_level = SEC_LEVEL_DELTA
 
 				post_status("alert", "deltaalert")
 
-				for(var/obj/machinery/firealarm/FA in machines)
+				for(var/obj/machinery/firealarm/FA in GLOB.machines)
 					if(is_station_contact(FA.z))
 						FA.overlays.Cut()
 						FA.overlays += image('icons/obj/monitors.dmi', "overlay_delta")
@@ -123,6 +136,7 @@
 			atc.reroute_traffic(yes = TRUE) // Tell them fuck off we're busy.
 		else
 			atc.reroute_traffic(yes = FALSE)
+		SSnightshift.check_nightshift(TRUE)
 
 	else
 		return
@@ -171,15 +185,3 @@
 			return SEC_LEVEL_EPSILON
 		if("delta")
 			return SEC_LEVEL_DELTA
-
-
-/*DEBUG
-/mob/verb/set_thing0()
-	set_security_level(0)
-/mob/verb/set_thing1()
-	set_security_level(1)
-/mob/verb/set_thing2()
-	set_security_level(2)
-/mob/verb/set_thing3()
-	set_security_level(3)
-*/

@@ -5,7 +5,7 @@
 	icon_keyboard = "security_key"
 	icon_screen = "cameras"
 	light_color = LIGHT_COLOR_RED
-	circuit = /obj/item/weapon/circuitboard/camera
+	circuit = /obj/item/circuitboard/camera
 
 	var/mapping = 0 // For the overview file (overview.dm), not used on this page
 
@@ -24,7 +24,7 @@
 	available_networks["Mining Outpost"] =    list(access_qm,access_hop,access_hos,access_captain)
 	available_networks["Research"] =          list(access_rd,access_hos,access_captain)
 	available_networks["Prison"] =            list(access_hos,access_captain)
-	available_networks["Labor"] =             list(access_hos,access_captain)
+	available_networks["Labor Camp"] =        list(access_hos,access_captain)
 	available_networks["Interrogation"] =     list(access_hos,access_captain)
 	available_networks["Atmosphere Alarms"] = list(access_ce,access_hos,access_captain)
 	available_networks["Fire Alarms"] =       list(access_ce,access_hos,access_captain)
@@ -79,14 +79,6 @@
 
 	ui_interact(user)
 
-/obj/machinery/computer/security/attackby(obj/item/I, user as mob, params)
-	if(isscrewdriver(I))
-		..()
-	else if(I.GetAccess()) // If hit by something with access.
-		attack_hand(user)
-	else
-		..()
-
 /obj/machinery/computer/security/telescreen/attackby(obj/item/I, mob/user, params)
 	if(ismultitool(I))
 		var/direction = input(user, "Which direction?", "Select direction!") as null|anything in list("North", "East", "South", "West", "Centre")
@@ -104,7 +96,7 @@
 			if("West")
 				pixel_x = -32
 	else
-		..()
+		return ..()
 
 /obj/machinery/computer/security/emag_act(user as mob)
 	if(!emagged)
@@ -114,9 +106,12 @@
 	else
 		attack_hand(user)
 
-/obj/machinery.computer/security/proc/get_user_access(mob/user)
+/obj/machinery/computer/security/proc/get_user_access(mob/user)
 	var/list/access = list()
-	if(ishuman(user))
+
+	if(emagged)
+		access = get_all_accesses() // Assume captain level access when emagged
+	else if(ishuman(user))
 		access = user.get_access()
 	else if((isAI(user) || isrobot(user)) && CanUseTopic(user, default_state) == STATUS_INTERACTIVE)
 		access = get_all_accesses() // Assume captain level access when AI
@@ -125,7 +120,7 @@
 	return access
 
 /obj/machinery/computer/security/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "sec_camera.tmpl", "Camera Console", 900, 800)
 
@@ -159,7 +154,6 @@
 
 	var/list/access = get_user_access(user)
 	if(emagged)
-		access = get_all_accesses() // Assume captain level access when emagged
 		data["emagged"] = 1
 
 	var/list/networks_list = list()
@@ -211,11 +205,11 @@
 					network += net
 					break
 
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 
 // Check if camera is accessible when jumping
 /obj/machinery/computer/security/proc/can_access_camera(var/obj/machinery/camera/C, var/mob/M)
-	if(CanUseTopic(M, default_state) != STATUS_INTERACTIVE || M.incapacitated() || M.blinded)
+	if(CanUseTopic(M, default_state) != STATUS_INTERACTIVE || M.incapacitated() || !M.has_vision())
 		return 0
 
 	if(isrobot(M))
@@ -319,7 +313,7 @@
 	icon_keyboard = null
 	light_range_on = 0
 	density = 0
-	circuit = /obj/item/weapon/circuitboard/camera/telescreen
+	circuit = /obj/item/circuitboard/camera/telescreen
 
 /obj/machinery/computer/security/telescreen/entertainment
 	name = "entertainment monitor"
@@ -330,7 +324,7 @@
 	light_range_on = 0
 	network = list("news")
 	luminosity = 0
-	circuit = /obj/item/weapon/circuitboard/camera/telescreen/entertainment
+	circuit = /obj/item/circuitboard/camera/telescreen/entertainment
 
 /obj/machinery/computer/security/wooden_tv
 	name = "security camera monitor"
@@ -341,7 +335,7 @@
 	light_color = "#3848B3"
 	light_power_on = 0.5
 	network = list("SS13")
-	circuit = /obj/item/weapon/circuitboard/camera/wooden_tv
+	circuit = /obj/item/circuitboard/camera/wooden_tv
 
 /obj/machinery/computer/security/mining
 	name = "outpost camera monitor"
@@ -350,7 +344,7 @@
 	icon_screen = "mining"
 	light_color = "#F9BBFC"
 	network = list("Mining Outpost")
-	circuit = /obj/item/weapon/circuitboard/camera/mining
+	circuit = /obj/item/circuitboard/camera/mining
 
 /obj/machinery/computer/security/engineering
 	name = "engineering camera monitor"
@@ -359,4 +353,4 @@
 	icon_screen = "engie_cams"
 	light_color = "#FAC54B"
 	network = list("Power Alarms","Atmosphere Alarms","Fire Alarms")
-	circuit = /obj/item/weapon/circuitboard/camera/engineering
+	circuit = /obj/item/circuitboard/camera/engineering

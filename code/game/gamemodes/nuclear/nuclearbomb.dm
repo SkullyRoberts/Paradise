@@ -6,6 +6,7 @@ var/bomb_set
 	icon = 'icons/obj/stationobjs.dmi'
 	icon_state = "nuclearbomb0"
 	density = 1
+	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF
 	var/deployable = 0
 	var/extended = 0
 	var/lighthack = 0
@@ -15,12 +16,11 @@ var/bomb_set
 	var/code = ""
 	var/yes_code = 0
 	var/safety = 1
-	var/obj/item/weapon/disk/nuclear/auth = null
+	var/obj/item/disk/nuclear/auth = null
 	var/removal_stage = 0 // 0 is no removal, 1 is covers removed, 2 is covers open, 3 is sealant open, 4 is unwrenched, 5 is removed from bolts.
 	var/lastentered
 	var/is_syndicate = 0
-	use_power = 0
-	unacidable = 1
+	use_power = NO_POWER_USE
 	var/previous_level = ""
 	var/datum/wires/nuclearbomb/wires = null
 
@@ -32,11 +32,11 @@ var/bomb_set
 	r_code = "[rand(10000, 99999.0)]"//Creates a random code upon object spawn.
 	wires = new/datum/wires/nuclearbomb(src)
 	previous_level = get_security_level()
-	poi_list |= src
+	GLOB.poi_list |= src
 
 /obj/machinery/nuclearbomb/Destroy()
 	QDEL_NULL(wires)
-	poi_list.Remove(src)
+	GLOB.poi_list.Remove(src)
 	return ..()
 
 /obj/machinery/nuclearbomb/process()
@@ -46,11 +46,11 @@ var/bomb_set
 		if(timeleft <= 0)
 			spawn
 				explode()
-		nanomanager.update_uis(src)
+		SSnanoui.update_uis(src)
 	return
 
-/obj/machinery/nuclearbomb/attackby(obj/item/weapon/O as obj, mob/user as mob, params)
-	if(istype(O, /obj/item/weapon/screwdriver))
+/obj/machinery/nuclearbomb/attackby(obj/item/O as obj, mob/user as mob, params)
+	if(istype(O, /obj/item/screwdriver))
 		add_fingerprint(user)
 		if(auth)
 			if(panel_open == 0)
@@ -74,22 +74,27 @@ var/bomb_set
 			flick("nuclearbombc", src)
 		return
 
-	if(panel_open && (istype(O, /obj/item/device/multitool) || istype(O, /obj/item/weapon/wirecutters)))
+	if(panel_open && (istype(O, /obj/item/multitool) || istype(O, /obj/item/wirecutters)))
 		return attack_hand(user)
 
-	if(extended)
-		if(istype(O, /obj/item/weapon/disk/nuclear))
-			usr.drop_item()
-			O.loc = src
+	if(istype(O, /obj/item/disk/nuclear))
+		if(extended)
+			if(!user.drop_item())
+				to_chat(user, "<span class='notice'>\The [O] is stuck to your hand!</span>")
+				return
+			O.forceMove(src)
 			auth = O
 			add_fingerprint(user)
 			return attack_hand(user)
+		else
+			to_chat(user, "<span class='notice'>You need to deploy \the [src] first. Right click on the sprite, select 'Make Deployable' then click on \the [src] with an empty hand.</span>")
+		return
 
 	if(anchored)
 		switch(removal_stage)
 			if(0)
-				if(istype(O,/obj/item/weapon/weldingtool))
-					var/obj/item/weapon/weldingtool/WT = O
+				if(istype(O,/obj/item/weldingtool))
+					var/obj/item/weldingtool/WT = O
 					if(!WT.isOn()) return
 					if(WT.get_fuel() < 5) // uses up 5 fuel.
 						to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
@@ -104,7 +109,7 @@ var/bomb_set
 				return
 
 			if(1)
-				if(istype(O,/obj/item/weapon/crowbar))
+				if(istype(O,/obj/item/crowbar))
 					user.visible_message("[user] starts forcing open the bolt covers on [src].", "You start forcing open the anchoring bolt covers with [O]...")
 
 					if(do_after(user,15, target = src))
@@ -114,9 +119,9 @@ var/bomb_set
 				return
 
 			if(2)
-				if(istype(O,/obj/item/weapon/weldingtool))
+				if(istype(O,/obj/item/weldingtool))
 
-					var/obj/item/weapon/weldingtool/WT = O
+					var/obj/item/weldingtool/WT = O
 					if(!WT.isOn()) return
 					if(WT.get_fuel() < 5) // uses up 5 fuel.
 						to_chat(user, "<span class='warning'>You need more fuel to complete this task.</span>")
@@ -131,7 +136,7 @@ var/bomb_set
 				return
 
 			if(3)
-				if(istype(O,/obj/item/weapon/wrench))
+				if(istype(O,/obj/item/wrench))
 
 					user.visible_message("[user] begins unwrenching the anchoring bolts on [src].", "You begin unwrenching the anchoring bolts...")
 
@@ -142,7 +147,7 @@ var/bomb_set
 				return
 
 			if(4)
-				if(istype(O,/obj/item/weapon/crowbar))
+				if(istype(O,/obj/item/crowbar))
 
 					user.visible_message("[user] begins lifting [src] off of the anchors.", "You begin lifting the device off the anchors...")
 
@@ -152,7 +157,8 @@ var/bomb_set
 						anchored = 0
 						removal_stage = 5
 				return
-	..()
+		return
+	return ..()
 
 /obj/machinery/nuclearbomb/attack_ghost(mob/user as mob)
 	if(extended)
@@ -177,7 +183,7 @@ var/bomb_set
 	return
 
 /obj/machinery/nuclearbomb/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "nuclear_bomb.tmpl", "Nuke Control Panel", 450, 550, state = physical_state)
 		ui.open()
@@ -247,7 +253,7 @@ var/bomb_set
 			auth = null
 		else
 			var/obj/item/I = usr.get_active_hand()
-			if(istype(I, /obj/item/weapon/disk/nuclear))
+			if(istype(I, /obj/item/disk/nuclear))
 				usr.drop_item()
 				I.loc = src
 				auth = I
@@ -280,11 +286,11 @@ var/bomb_set
 				timeleft = min(max(round(src.timeleft), 120), 600)
 			if(href_list["timer"])
 				if(timing == -1.0)
-					nanomanager.update_uis(src)
+					SSnanoui.update_uis(src)
 					return
 				if(safety)
 					to_chat(usr, "<span class='warning'>The safety is still on.</span>")
-					nanomanager.update_uis(src)
+					SSnanoui.update_uis(src)
 					return
 				timing = !(timing)
 				if(timing)
@@ -314,7 +320,7 @@ var/bomb_set
 				if(removal_stage == 5)
 					anchored = 0
 					visible_message("<span class='warning'>\The [src] makes a highly unpleasant crunching noise. It looks like the anchoring bolts have been cut.</span>")
-					nanomanager.update_uis(src)
+					SSnanoui.update_uis(src)
 					return
 
 				if(!isinspace())
@@ -326,17 +332,12 @@ var/bomb_set
 				else
 					to_chat(usr, "<span class='warning'>There is nothing to anchor to!</span>")
 
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 
-/obj/machinery/nuclearbomb/ex_act(severity)
-	return
-
-/obj/machinery/nuclearbomb/blob_act()
+/obj/machinery/nuclearbomb/blob_act(obj/structure/blob/B)
 	if(timing == -1.0)
 		return
-	else
-		return ..()
-	return
+	qdel(src)
 
 /obj/machinery/nuclearbomb/tesla_act(power, explosive)
 	..()
@@ -353,9 +354,9 @@ var/bomb_set
 	safety = 1
 	if(!lighthack)
 		icon_state = "nuclearbomb3"
-	playsound(src,'sound/machines/Alarm.ogg',100,0,5)
-	if(ticker && ticker.mode)
-		ticker.mode.explosion_in_progress = 1
+	playsound(src,'sound/machines/alarm.ogg',100,0,5)
+	if(SSticker && SSticker.mode)
+		SSticker.mode.explosion_in_progress = 1
 	sleep(100)
 
 	enter_allowed = 0
@@ -368,17 +369,17 @@ var/bomb_set
 	else
 		off_station = 2
 
-	if(ticker)
-		if(ticker.mode && ticker.mode.name == "nuclear emergency")
-			var/obj/docking_port/mobile/syndie_shuttle = shuttle_master.getShuttle("syndicate")
+	if(SSticker)
+		if(SSticker.mode && SSticker.mode.name == "nuclear emergency")
+			var/obj/docking_port/mobile/syndie_shuttle = SSshuttle.getShuttle("syndicate")
 			if(syndie_shuttle)
-				ticker.mode:syndies_didnt_escape = is_station_level(syndie_shuttle.z)
-			ticker.mode:nuke_off_station = off_station
-		ticker.station_explosion_cinematic(off_station,null)
-		if(ticker.mode)
-			ticker.mode.explosion_in_progress = 0
-			if(ticker.mode.name == "nuclear emergency")
-				ticker.mode:nukes_left --
+				SSticker.mode:syndies_didnt_escape = is_station_level(syndie_shuttle.z)
+			SSticker.mode:nuke_off_station = off_station
+		SSticker.station_explosion_cinematic(off_station,null)
+		if(SSticker.mode)
+			SSticker.mode.explosion_in_progress = 0
+			if(SSticker.mode.name == "nuclear emergency")
+				SSticker.mode:nukes_left --
 			else if(off_station == 1)
 				to_chat(world, "<b>A nuclear device was set off, but the explosion was out of reach of the station!</b>")
 			else if(off_station == 2)
@@ -386,47 +387,65 @@ var/bomb_set
 			else
 				to_chat(world, "<b>The station was destoyed by the nuclear blast!</b>")
 
-			ticker.mode.station_was_nuked = (off_station<2)	//offstation==1 is a draw. the station becomes irradiated and needs to be evacuated.
+			SSticker.mode.station_was_nuked = (off_station<2)	//offstation==1 is a draw. the station becomes irradiated and needs to be evacuated.
 															//kinda shit but I couldn't  get permission to do what I wanted to do.
 
-			if(!ticker.mode.check_finished())//If the mode does not deal with the nuke going off so just reboot because everyone is stuck as is
+			if(!SSticker.mode.check_finished())//If the mode does not deal with the nuke going off so just reboot because everyone is stuck as is
 				world.Reboot("Station destroyed by Nuclear Device.", "end_error", "nuke - unhandled ending")
 				return
 	return
 
 
 //==========DAT FUKKEN DISK===============
-/obj/item/weapon/disk/nuclear
+/obj/item/disk/nuclear
 	name = "nuclear authentication disk"
 	desc = "Better keep this safe."
 	icon_state = "nucleardisk"
+	max_integrity = 250
+	armor = list("melee" = 0, "bullet" = 0, "laser" = 0, "energy" = 0, "bomb" = 30, "bio" = 0, "rad" = 0, "fire" = 100, "acid" = 100)
+	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | ACID_PROOF
 
-/obj/item/weapon/disk/nuclear/New()
+/obj/item/disk/nuclear/unrestricted
+	desc = "Seems to have been stripped of its safeties, you better not lose it."
+
+/obj/item/disk/nuclear/New()
 	..()
-	processing_objects.Add(src)
-	poi_list |= src
+	START_PROCESSING(SSobj, src)
+	GLOB.poi_list |= src
 
-/obj/item/weapon/disk/nuclear/process()
-	var/turf/disk_loc = get_turf(src)
-	if(!is_secure_level(disk_loc.z))
+/obj/item/disk/nuclear/process()
+	if(!check_disk_loc())
 		var/holder = get(src, /mob)
 		if(holder)
 			to_chat(holder, "<span class='danger'>You can't help but feel that you just lost something back there...</span>")
 		qdel(src)
 
-/obj/item/weapon/disk/nuclear/Destroy(force)
+ //station disk is allowed on z1, escape shuttle/pods, CC, and syndicate shuttles/base, reset otherwise
+/obj/item/disk/nuclear/proc/check_disk_loc()
+	var/turf/T = get_turf(src)
+	var/area/A = get_area(src)
+	if(is_station_level(T.z))
+		return TRUE
+	if(A.nad_allowed)
+		return TRUE
+	return FALSE
+
+/obj/item/disk/nuclear/unrestricted/check_disk_loc()
+	return TRUE
+
+/obj/item/disk/nuclear/Destroy(force)
 	var/turf/diskturf = get_turf(src)
 
 	if(force)
 		message_admins("[src] has been !!force deleted!! in ([diskturf ? "[diskturf.x], [diskturf.y] ,[diskturf.z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[diskturf.x];Y=[diskturf.y];Z=[diskturf.z]'>JMP</a>":"nonexistent location"]).")
 		log_game("[src] has been !!force deleted!! in ([diskturf ? "[diskturf.x], [diskturf.y] ,[diskturf.z]":"nonexistent location"]).")
-		poi_list.Remove(src)
-		processing_objects.Remove(src)
+		GLOB.poi_list.Remove(src)
+		STOP_PROCESSING(SSobj, src)
 		return ..()
 
 	if(blobstart.len > 0)
-		poi_list.Remove(src)
-		var/obj/item/weapon/disk/nuclear/NEWDISK = new(pick(blobstart))
+		GLOB.poi_list.Remove(src)
+		var/obj/item/disk/nuclear/NEWDISK = new(pick(blobstart))
 		transfer_fingerprints_to(NEWDISK)
 		message_admins("[src] has been destroyed at ([diskturf.x], [diskturf.y], [diskturf.z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[diskturf.x];Y=[diskturf.y];Z=[diskturf.z]'>JMP</a>). Moving it to ([NEWDISK.x], [NEWDISK.y], [NEWDISK.z] - <A HREF='?_src_=holder;adminplayerobservecoodjump=1;X=[NEWDISK.x];Y=[NEWDISK.y];Z=[NEWDISK.z]'>JMP</a>).")
 		log_game("[src] has been destroyed in ([diskturf.x], [diskturf.y], [diskturf.z]). Moving it to ([NEWDISK.x], [NEWDISK.y], [NEWDISK.z]).")

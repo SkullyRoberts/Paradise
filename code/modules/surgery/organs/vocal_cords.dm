@@ -51,6 +51,35 @@ var/static/regex/multispin_words = regex("like a record baby")
 /obj/item/organ/internal/vocal_cords/proc/handle_speech(message) //change the message
 	return message
 
+/obj/item/organ/internal/adamantine_resonator
+	name = "adamantine resonator"
+	desc = "Fragments of adamantine exist in all golems, stemming from their origins as purely magical constructs. These are used to \"hear\" messages from their leaders."
+	parent_organ = "head"
+	slot = "adamantine_resonator"
+	icon_state = "adamantine_resonator"
+
+/obj/item/organ/internal/vocal_cords/adamantine
+	name = "adamantine vocal cords"
+	desc = "When adamantine resonates, it causes all nearby pieces of adamantine to resonate as well. Adamantine golems use this to broadcast messages to nearby golems."
+	actions_types = list(/datum/action/item_action/organ_action/use/adamantine_vocal_cords)
+	icon_state = "adamantine_cords"
+
+/datum/action/item_action/organ_action/use/adamantine_vocal_cords/Trigger()
+	if(!IsAvailable())
+		return
+	var/message = input(owner, "Resonate a message to all nearby golems.", "Resonate")
+	if(QDELETED(src) || QDELETED(owner) || !message)
+		return
+	owner.say(".x[message]")
+
+/obj/item/organ/internal/vocal_cords/adamantine/handle_speech(message)
+	var/msg = "<span class='resonate'><span class='name'>[owner.real_name]</span> <span class='message'>resonates, \"[message]\"</span></span>"
+	for(var/m in GLOB.player_list)
+		if(iscarbon(m))
+			var/mob/living/carbon/C = m
+			if(C.get_organ_slot("adamantine_resonator"))
+				to_chat(C, msg)
+
 //Colossus drop, forces the listeners to obey certain commands
 /obj/item/organ/internal/vocal_cords/colossus
 	name = "divine vocal cords"
@@ -96,6 +125,9 @@ var/static/regex/multispin_words = regex("like a record baby")
 		return
 	owner.say(".x[command]")
 
+/obj/item/organ/internal/vocal_cords/colossus/prepare_eat()
+	return
+	
 /obj/item/organ/internal/vocal_cords/colossus/can_speak_with()
 	if(world.time < next_command)
 		to_chat(owner, "<span class='notice'>You must wait [(next_command - world.time)/10] seconds before Speaking again.</span>")
@@ -122,7 +154,7 @@ var/static/regex/multispin_words = regex("like a record baby")
 
 	var/mob/living/list/listeners = list()
 	for(var/mob/living/L in get_mobs_in_view(8, owner, TRUE))
-		if(!L.ear_deaf && !L.null_rod_check() && L != owner && L.stat != DEAD)
+		if(L.can_hear() && !L.null_rod_check() && L != owner && L.stat != DEAD)
 			if(ishuman(L))
 				var/mob/living/carbon/human/H = L
 				if(istype(H.l_ear, /obj/item/clothing/ears/earmuffs) || istype(H.r_ear, /obj/item/clothing/ears/earmuffs))
@@ -136,8 +168,8 @@ var/static/regex/multispin_words = regex("like a record baby")
 	var/power_multiplier = base_multiplier
 
 	if(owner.mind)
-		//Chaplains are very good at speaking with the voice of god
-		if(owner.mind.assigned_role == "Chaplain")
+		//Holy characters are very good at speaking with the voice of god
+		if(owner.mind.isholy)
 			power_multiplier *= 2
 		//Command staff has authority
 		if(owner.mind.assigned_role in command_positions)
@@ -156,13 +188,12 @@ var/static/regex/multispin_words = regex("like a record baby")
 
 	for(var/V in listeners)
 		var/mob/living/L = V
-		/*if(L.mind && L.mind.devilinfo && findtext(message, L.mind.devilinfo.truename))
+		if(L.mind && L.mind.devilinfo && findtext(message, L.mind.devilinfo.truename))
 			var/start = findtext(message, L.mind.devilinfo.truename)
 			listeners = list(L) //let's be honest you're never going to find two devils with the same name
 			power_multiplier *= 5 //if you're a devil and god himself addressed you, you fucked up
 			//Cut out the name so it doesn't trigger commands
 			message = copytext(message, 0, start)+copytext(message, start + length(L.mind.devilinfo.truename), length(message) + 1)
-			break*/
 		if(findtext(message, L.real_name) == 1)
 			specific_listeners += L //focus on those with the specified name
 			//Cut out the name so it doesn't trigger commands
@@ -231,7 +262,7 @@ var/static/regex/multispin_words = regex("like a record baby")
 	else if((findtext(message, heal_words)))
 		for(var/V in listeners)
 			var/mob/living/L = V
-			L.heal_overall_damage(10 * power_multiplier, 10 * power_multiplier, 0, 0)
+			L.heal_overall_damage(10 * power_multiplier, 10 * power_multiplier, TRUE, 0, 0)
 		next_command = world.time + cooldown_damage
 
 	//BRUTE DAMAGE
@@ -380,7 +411,7 @@ var/static/regex/multispin_words = regex("like a record baby")
 	else if((findtext(message, sit_words)))
 		for(var/V in listeners)
 			var/mob/living/L = V
-			for(var/obj/structure/stool/bed/chair/chair in get_turf(L))
+			for(var/obj/structure/chair/chair in get_turf(L))
 				chair.buckle_mob(L)
 				break
 		next_command = world.time + cooldown_meme
@@ -389,7 +420,7 @@ var/static/regex/multispin_words = regex("like a record baby")
 	else if((findtext(message, stand_words)))
 		for(var/V in listeners)
 			var/mob/living/L = V
-			if(L.buckled && istype(L.buckled, /obj/structure/stool/bed/chair))
+			if(L.buckled && istype(L.buckled, /obj/structure/chair))
 				L.buckled.unbuckle_mob(L)
 		next_command = world.time + cooldown_meme
 

@@ -1,13 +1,10 @@
 // reference: /client/proc/modify_variables(var/atom/O, var/param_var_name = null, var/autodetect_class = 0)
 
-/datum
-	var/var_edited = FALSE //Warranty void if seal is broken
-
 /datum/proc/can_vv_get(var_name)
 	return TRUE
 
-/client/proc/can_vv_get(var_name)
-	return TRUE
+// /client/proc/can_vv_get(var_name)
+// 	return TRUE
 
 /datum/proc/vv_edit_var(var_name, var_value) //called whenever a var is edited
 	switch(var_name)
@@ -21,7 +18,7 @@
 	. = TRUE
 
 
-/client/proc/vv_edit_var(var_name, var_value) //called whenever a var is edited
+/client/vv_edit_var(var_name, var_value) //called whenever a var is edited
 	switch(var_name)
 		if("vars")
 			return FALSE
@@ -34,13 +31,13 @@
 
 /datum/proc/vv_get_var(var_name)
 	switch(var_name)
-		if("attack_log")
+		if("attack_log", "debug_log")
 			return debug_variable(var_name, vars[var_name], 0, src, sanitize = FALSE)
 		if("vars")
 			return debug_variable(var_name, list(), 0, src)
 	return debug_variable(var_name, vars[var_name], 0, src)
 
-/client/proc/vv_get_var(var_name)
+/client/vv_get_var(var_name)
 	switch(var_name)
 		if("vars")
 			return debug_variable(var_name, list(), 0, src)
@@ -58,14 +55,16 @@
 	.["Mark Object"] = "?_src_=vars;mark_object=[UID()]"
 	.["Jump to Object"] = "?_src_=vars;jump_to=[UID()]"
 	.["Delete"] = "?_src_=vars;delete=[UID()]"
+	.["Modify Traits"] = "?_src_=vars;traitmod=[UID()]"
 	. += "---"
 
-/client/proc/vv_get_dropdown()
+/client/vv_get_dropdown()
 	. = list()
 	. += "---"
 	.["Call Proc"] = "?_src_=vars;proc_call=[UID()]"
 	.["Mark Object"] = "?_src_=vars;mark_object=[UID()]"
 	.["Delete"] = "?_src_=vars;delete=[UID()]"
+	.["Modify Traits"] = "?_src_=vars;traitmod=[UID()]"
 	. += "---"
 
 /client/proc/debug_variables(datum/D in world)
@@ -549,7 +548,7 @@
 			to_chat(usr, "This can only be used on instances of type /mob")
 			return
 
-		var/new_name = sanitize(copytext(input(usr,"What would you like to name this mob?","Input a name",M.real_name) as text|null,1,MAX_NAME_LEN))
+		var/new_name = reject_bad_name(sanitize(copytext(input(usr,"What would you like to name this mob?","Input a name",M.real_name) as text|null,1,MAX_NAME_LEN)))
 		if( !new_name || !M )	return
 
 		message_admins("Admin [key_name_admin(usr)] renamed [key_name_admin(M)] to [new_name].")
@@ -624,6 +623,33 @@
 		src.give_spell(M)
 		href_list["datumrefresh"] = href_list["give_spell"]
 
+	else if(href_list["givemartialart"])
+		if(!check_rights(R_SERVER|R_EVENT))	return
+
+		var/mob/living/carbon/C = locateUID(href_list["givemartialart"])
+		if(!istype(C))
+			to_chat(usr, "This can only be done to instances of type /mob/living/carbon")
+			return
+
+		var/list/artpaths = subtypesof(/datum/martial_art)
+		var/list/artnames = list()
+		for(var/i in artpaths)
+			var/datum/martial_art/M = i
+			artnames[initial(M.name)] = M
+
+		var/result = input(usr, "Choose the martial art to teach", "JUDO CHOP") as null|anything in artnames
+		if(!usr)
+			return
+		if(QDELETED(C))
+			to_chat(usr, "Mob doesn't exist anymore")
+			return
+
+		if(result)
+			var/chosenart = artnames[result]
+			var/datum/martial_art/MA = new chosenart
+			MA.teach(C)
+
+		href_list["datumrefresh"] = href_list["givemartialart"]
 
 	else if(href_list["give_disease"])
 		if(!check_rights(R_SERVER|R_EVENT))	return
@@ -714,22 +740,7 @@
 		if(!istype(M))
 			to_chat(usr, "This can only be used on instances of type /mob")
 			return
-		to_chat(M, "Control of your mob has been offered to dead players.")
-		log_admin("[key_name(usr)] has offered control of ([key_name(M)]) to ghosts.")
-		var/minhours = input(usr, "Minimum hours required to play [M]?", "Set Min Hrs", 10) as num
-		message_admins("[key_name_admin(usr)] has offered control of ([key_name_admin(M)]) to ghosts with [minhours] hrs playtime")
-		var/list/mob/dead/observer/candidates = pollCandidates("Do you want to play as [M.real_name]?", poll_time = 100, min_hours = minhours)
-		var/mob/dead/observer/theghost = null
-
-		if(candidates.len)
-			theghost = pick(candidates)
-			to_chat(M, "Your mob has been taken over by a ghost!")
-			message_admins("[key_name_admin(theghost)] has taken control of ([key_name_admin(M)])")
-			M.ghostize()
-			M.key = theghost.key
-		else
-			to_chat(M, "There were no ghosts willing to take control.")
-			message_admins("No ghosts were willing to take control of [key_name_admin(M)])")
+		offer_control(M)
 
 	else if(href_list["delete"])
 		if(!check_rights(R_DEBUG, 0))
@@ -784,6 +795,30 @@
 				log_admin("[key_name(usr)] deleted all objects of type or subtype of [O_type] ([i] objects deleted)")
 				message_admins("[key_name_admin(usr)] deleted all objects of type or subtype of [O_type] ([i] objects deleted)")
 
+	else if(href_list["makespeedy"])
+		if(!check_rights(R_DEBUG|R_ADMIN))
+			return
+		var/obj/A = locateUID(href_list["makespeedy"])
+		if(!istype(A))
+			return
+		A.var_edited = TRUE
+		A.makeSpeedProcess()
+		log_admin("[key_name(usr)] has made [A] speed process")
+		message_admins("<span class='notice'>[key_name(usr)] has made [A] speed process</span>")
+		return TRUE
+
+	else if(href_list["makenormalspeed"])
+		if(!check_rights(R_DEBUG|R_ADMIN))
+			return
+		var/obj/A = locateUID(href_list["makenormalspeed"])
+		if(!istype(A))
+			return
+		A.var_edited = TRUE
+		A.makeNormalProcess()
+		log_admin("[key_name(usr)] has made [A] process normally")
+		message_admins("<span class='notice'>[key_name(usr)] has made [A] process normally</span>")
+		return TRUE
+
 	else if(href_list["addreagent"]) /* Made on /TG/, credit to them. */
 		if(!check_rights(R_DEBUG|R_ADMIN))	return
 
@@ -796,7 +831,7 @@
 
 		if(A.reagents)
 			var/chosen_id
-			var/list/reagent_options = sortAssoc(chemical_reagents_list)
+			var/list/reagent_options = sortAssoc(GLOB.chemical_reagents_list)
 			switch(alert(usr, "Choose a method.", "Add Reagents", "Enter ID", "Choose ID"))
 				if("Enter ID")
 					var/valid_id
@@ -971,16 +1006,6 @@
 			return
 		holder.Topic(href, list("makeai"=href_list["makeai"]))
 
-	else if(href_list["makemask"])
-		if(!check_rights(R_SPAWN)) return
-		var/mob/currentMob = locateUID(href_list["makemask"])
-		if(alert("Confirm mob type change?",,"Transform","Cancel") != "Transform")	return
-		if(!currentMob)
-			to_chat(usr, "Mob doesn't exist anymore")
-			return
-		holder.Topic(href, list("makemask"=href_list["makemask"]))
-
-
 	else if(href_list["setspecies"])
 		if(!check_rights(R_SPAWN))	return
 
@@ -989,14 +1014,15 @@
 			to_chat(usr, "This can only be done to instances of type /mob/living/carbon/human")
 			return
 
-		var/new_species = input("Please choose a new species.","Species",null) as null|anything in all_species
+		var/new_species = input("Please choose a new species.","Species",null) as null|anything in GLOB.all_species
 
 		if(!H)
 			to_chat(usr, "Mob doesn't exist anymore")
 			return
 
-		if(H.set_species(new_species))
-			to_chat(usr, "Set species of [H] to [H.species].")
+		var/datum/species/S = GLOB.all_species[new_species]
+		if(H.set_species(S.type))
+			to_chat(usr, "Set species of [H] to [H.dna.species].")
 			H.regenerate_icons()
 			message_admins("[key_name_admin(usr)] has changed the species of [key_name_admin(H)] to [new_species]")
 			log_admin("[key_name(usr)] has changed the species of [key_name(H)] to [new_species]")
@@ -1011,7 +1037,7 @@
 			to_chat(usr, "This can only be done to instances of type /mob")
 			return
 
-		var/new_language = input("Please choose a language to add.","Language",null) as null|anything in all_languages
+		var/new_language = input("Please choose a language to add.","Language",null) as null|anything in GLOB.all_languages
 
 		if(!new_language)
 			return
@@ -1193,13 +1219,28 @@
 			return
 
 		switch(Text)
-			if("brute")	L.adjustBruteLoss(amount)
-			if("fire")	L.adjustFireLoss(amount)
-			if("toxin")	L.adjustToxLoss(amount)
-			if("oxygen")L.adjustOxyLoss(amount)
-			if("brain")	L.adjustBrainLoss(amount)
-			if("clone")	L.adjustCloneLoss(amount)
-			if("stamina") L.adjustStaminaLoss(amount)
+			if("brute")
+				if(ishuman(L))
+					var/mob/living/carbon/human/H = L
+					H.adjustBruteLoss(amount, robotic = TRUE)
+				else
+					L.adjustBruteLoss(amount)
+			if("fire")
+				if(ishuman(L))
+					var/mob/living/carbon/human/H = L
+					H.adjustFireLoss(amount, robotic = TRUE)
+				else
+					L.adjustFireLoss(amount)
+			if("toxin")
+				L.adjustToxLoss(amount)
+			if("oxygen")
+				L.adjustOxyLoss(amount)
+			if("brain")
+				L.adjustBrainLoss(amount)
+			if("clone")
+				L.adjustCloneLoss(amount)
+			if("stamina")
+				L.adjustStaminaLoss(amount)
 			else
 				to_chat(usr, "You caused an error. DEBUG: Text:[Text] Mob:[L]")
 				return
@@ -1209,13 +1250,26 @@
 			message_admins("[key_name_admin(usr)] dealt [amount] amount of [Text] damage to [L]")
 			href_list["datumrefresh"] = href_list["mobToDamage"]
 
+	else if(href_list["traitmod"])
+		if(!check_rights(NONE))
+			return
+		var/datum/A = locateUID(href_list["traitmod"])
+		if(!istype(A))
+			return
+		holder.modify_traits(A)
+
 	if(href_list["datumrefresh"])
 		var/datum/DAT = locateUID(href_list["datumrefresh"])
 		if(!istype(DAT, /datum) && !isclient(DAT))
 			return
 		src.debug_variables(DAT)
 
-	return
+	if(href_list["copyoutfit"])
+		if(!check_rights(R_EVENT))
+			return
+		var/mob/living/carbon/human/H = locateUID(href_list["copyoutfit"])
+		if(istype(H))
+			H.copy_outfit()
 
 /client/proc/view_var_Topic_list(href, href_list, hsrc)
 	if(href_list["VarsList"])
@@ -1263,7 +1317,7 @@
 		if(prompt != "Yes")
 			return
 		L.Cut(index, index+1)
-		log_to_dd("### ListVarEdit by [src]: /list's contents: REMOVED=[html_encode("[variable]")]")
+		log_world("### ListVarEdit by [src]: /list's contents: REMOVED=[html_encode("[variable]")]")
 		log_admin("[key_name(src)] modified list's contents: REMOVED=[variable]")
 		message_admins("[key_name_admin(src)] modified list's contents: REMOVED=[variable]")
 		return TRUE
@@ -1284,7 +1338,7 @@
 			return TRUE
 
 		uniqueList_inplace(L)
-		log_to_dd("### ListVarEdit by [src]: /list contents: CLEAR DUPES")
+		log_world("### ListVarEdit by [src]: /list contents: CLEAR DUPES")
 		log_admin("[key_name(src)] modified list's contents: CLEAR DUPES")
 		message_admins("[key_name_admin(src)] modified list's contents: CLEAR DUPES")
 		return TRUE
@@ -1296,7 +1350,7 @@
 			return TRUE
 
 		listclearnulls(L)
-		log_to_dd("### ListVarEdit by [src]: /list contents: CLEAR NULLS")
+		log_world("### ListVarEdit by [src]: /list contents: CLEAR NULLS")
 		log_admin("[key_name(src)] modified list's contents: CLEAR NULLS")
 		message_admins("[key_name_admin(src)] modified list's contents: CLEAR NULLS")
 		return TRUE
@@ -1311,7 +1365,7 @@
 			return TRUE
 
 		L.len = value["value"]
-		log_to_dd("### ListVarEdit by [src]: /list len: [L.len]")
+		log_world("### ListVarEdit by [src]: /list len: [L.len]")
 		log_admin("[key_name(src)] modified list's len: [L.len]")
 		message_admins("[key_name_admin(src)] modified list's len: [L.len]")
 		return TRUE
@@ -1323,7 +1377,7 @@
 			return TRUE
 
 		shuffle_inplace(L)
-		log_to_dd("### ListVarEdit by [src]: /list contents: SHUFFLE")
+		log_world("### ListVarEdit by [src]: /list contents: SHUFFLE")
 		log_admin("[key_name(src)] modified list's contents: SHUFFLE")
 		message_admins("[key_name_admin(src)] modified list's contents: SHUFFLE")
 		return TRUE

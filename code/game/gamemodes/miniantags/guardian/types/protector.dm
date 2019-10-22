@@ -41,7 +41,8 @@
 		toggle = TRUE
 
 /mob/living/simple_animal/hostile/guardian/protector/snapback() //snap to what? snap to the guardian!
-	if(summoner)
+	// If the summoner dies instantly, the summoner's ghost may be drawn into null space as the protector is deleted. This check should prevent that.
+	if(summoner && loc && summoner.loc)
 		if(get_dist(get_turf(summoner),get_turf(src)) <= range)
 			return
 		else
@@ -51,7 +52,7 @@
 				Recall(TRUE)
 			else
 				to_chat(summoner, "<span class='holoparasite'>You moved out of range, and were pulled back! You can only move [range] meters from <b>[src]</b>!</span>")
-				summoner.visible_message("<span class='danger'>[summoner] jumps back to their protector.</span>")
-				new /obj/effect/overlay/temp/guardian/phase/out(get_turf(summoner))
+				summoner.visible_message("<span class='danger'>[summoner] jumps back to [summoner.p_their()] protector.</span>")
+				new /obj/effect/temp_visual/guardian/phase/out(get_turf(summoner))
 				summoner.forceMove(get_turf(src))
-				new /obj/effect/overlay/temp/guardian/phase(get_turf(summoner))//Protector
+				new /obj/effect/temp_visual/guardian/phase(get_turf(summoner))//Protector

@@ -13,8 +13,6 @@
 			continue
 		if(H.stat == UNCONSCIOUS && !stat_attack)
 			continue
-		if(ai_type == TS_AI_DEFENSIVE && !(H in enemies))
-			continue
 		if(isterrorspider(H))
 			if(H in enemies)
 				targets3 += H
@@ -44,7 +42,7 @@
 					else
 						targets3 += C
 				else if(ai_target_method == TS_DAMAGE_POISON)
-					if(C.can_inject(null,0,"chest",0))
+					if(C.can_inject(null, FALSE, "chest", FALSE))
 						targets1 += C
 					else if(C in enemies)
 						targets2 += C
@@ -92,10 +90,18 @@
 // --------------------- TERROR SPIDERS: AI BEHAVIOR CODE -------------------------
 // --------------------------------------------------------------------------------
 
+
 /mob/living/simple_animal/hostile/poison/terror_spider/handle_automated_action()
-	if (stat || ckey)
-		return ..()
-	if(AIStatus != AI_OFF && !target)
+	if(target)
+		CreatePath(target)
+	return ..()
+
+/mob/living/simple_animal/hostile/poison/terror_spider/handle_automated_movement()
+	// Putting the main terror spider AI code in handle_automated_movement() rather than handle_automated_action() ensures it will still run when the spider AIStatus == AI_IDLE
+	// This is necessary for the terror spiders in the away mission to work properly.
+	if(AIStatus != AI_IDLE)
+		return
+	if(!target)
 		var/my_ventcrawl_freq = freq_ventcrawl_idle
 		if(ts_count_dead > 0)
 			if(world.time < (ts_death_last + ts_death_window))
@@ -130,25 +136,22 @@
 				if(!L.status)
 					step_to(src,L)
 					L.on = 1
-					L.broken()
-					L.do_attack_animation(src)
+					L.break_light_tube()
+					do_attack_animation(L)
 					visible_message("<span class='danger'>[src] smashes the [L.name].</span>")
-					break
-		else if(ai_spins_webs && world.time > (last_spins_webs + freq_spins_webs))
+					return
+		else if(ai_spins_webs && web_type && world.time > (last_spins_webs + freq_spins_webs))
 			last_spins_webs = world.time
 			var/obj/structure/spider/terrorweb/T = locate() in get_turf(src)
 			if(!T)
-				var/obj/structure/spider/terrorweb/W = new /obj/structure/spider/terrorweb(loc)
-				if(web_infects)
-					W.infectious = 1
-					W.name = "sharp terror web"
+				new web_type(loc)
 				visible_message("<span class='notice'>[src] puts up some spider webs.</span>")
 		else if(ai_ventcrawls && world.time > (last_ventcrawl_time + my_ventcrawl_freq))
 			if(prob(idle_ventcrawl_chance))
 				last_ventcrawl_time = world.time
 				var/vdistance = 99
 				for(var/obj/machinery/atmospherics/unary/vent_pump/v in view(10, src))
-					if(!v.welded)
+					if(!v.welded || ai_ventbreaker)
 						if(get_dist(src,v) < vdistance)
 							entry_vent = v
 							vdistance = get_dist(src,v)
@@ -157,16 +160,14 @@
 		else
 			// If none of the general actions apply, check for class-specific actions.
 			spider_special_action()
-	else if(AIStatus != AI_OFF && target)
-		CreatePath(target)
-	..()
+		..()
 
 /mob/living/simple_animal/hostile/poison/terror_spider/adjustBruteLoss(damage)
-	..(damage)
+	. = ..(damage)
 	Retaliate()
 
 /mob/living/simple_animal/hostile/poison/terror_spider/adjustFireLoss(damage)
-	..(damage)
+	. = ..(damage)
 	Retaliate()
 
 /mob/living/simple_animal/hostile/poison/terror_spider/proc/Retaliate()
@@ -202,6 +203,42 @@
 			H.enemies |= enemies
 	return 0
 
+/mob/living/simple_animal/hostile/poison/terror_spider/proc/handle_cocoon_target()
+	if(cocoon_target)
+		if(get_dist(src, cocoon_target) <= 1)
+			spider_steps_taken = 0
+			DoWrap()
+		else
+			if(spider_steps_taken > spider_max_steps)
+				spider_steps_taken = 0
+				cocoon_target = null
+				busy = 0
+				stop_automated_movement = 0
+			else
+				spider_steps_taken++
+				CreatePath(cocoon_target)
+				step_to(src,cocoon_target)
+				if(spider_debug)
+					visible_message("<span class='notice'>[src] moves towards [cocoon_target] to cocoon it.</span>")
+
+/mob/living/simple_animal/hostile/poison/terror_spider/proc/seek_cocoon_target()
+	last_cocoon_object = world.time
+	var/list/can_see = view(src, 10)
+	for(var/mob/living/C in can_see)
+		if(C.stat == DEAD && !isterrorspider(C) && !C.anchored)
+			spider_steps_taken = 0
+			cocoon_target = C
+			return
+	for(var/obj/O in can_see)
+		if(O.anchored)
+			continue
+		if(istype(O, /obj/item) || istype(O, /obj/structure) || istype(O, /obj/machinery))
+			if(!istype(O, /obj/item/paper))
+				cocoon_target = O
+				stop_automated_movement = 1
+				spider_steps_taken = 0
+				return
+
 // --------------------------------------------------------------------------------
 // --------------------- TERROR SPIDERS: PATHING CODE -----------------------------
 // --------------------------------------------------------------------------------
@@ -217,7 +254,8 @@
 				var/tgt_dir = get_dir(src,mygoal)
 				for(var/obj/machinery/door/airlock/A in view(1, src))
 					if(A.density)
-						try_open_airlock(A)
+						spawn(0)
+							try_open_airlock(A)
 				for(var/obj/machinery/door/firedoor/F in view(1, src))
 					if(tgt_dir == get_dir(src,F) && F.density && !F.welded)
 						visible_message("<span class='danger'>[src] pries open the firedoor!</span>")
@@ -234,9 +272,13 @@
 		if(is_type_in_list(obstacle, valid_obstacles))
 			obstacle.attack_animal(src)
 
-/mob/living/simple_animal/hostile/poison/terror_spider/proc/TSVentCrawlRandom(/var/entry_vent)
+/mob/living/simple_animal/hostile/poison/terror_spider/proc/TSVentCrawlRandom()
 	if(entry_vent)
 		if(get_dist(src, entry_vent) <= 2)
+			if(ai_ventbreaker && entry_vent.welded)
+				entry_vent.welded = 0
+				entry_vent.update_icon()
+				entry_vent.visible_message("<span class='danger'>[src] smashes the welded cover off [entry_vent]!</span>")
 			var/list/vents = list()
 			for(var/obj/machinery/atmospherics/unary/vent_pump/temp_vent in entry_vent.parent.other_atmosmch)
 				vents.Add(temp_vent)
@@ -250,17 +292,23 @@
 				forceMove(exit_vent)
 				var/travel_time = round(get_dist(loc, exit_vent.loc) / 2)
 				spawn(travel_time)
-					if(!exit_vent || exit_vent.welded)
+					if(!exit_vent || (exit_vent.welded && !ai_ventbreaker))
 						forceMove(original_location)
 						entry_vent = null
 						return
 					if(prob(50))
 						audible_message("<span class='notice'>You hear something squeezing through the ventilation ducts.</span>")
 					spawn(travel_time)
-						if(!exit_vent || exit_vent.welded)
+						if(!exit_vent || (exit_vent.welded && !ai_ventbreaker))
 							forceMove(original_location)
 							entry_vent = null
 							return
+						if(ai_ventbreaker && exit_vent.welded)
+							exit_vent.welded = 0
+							exit_vent.update_icon()
+							exit_vent.update_pipe_image()
+							exit_vent.visible_message("<span class='danger'>[src] smashes the welded cover off [exit_vent]!</span>")
+							playsound(exit_vent.loc, 'sound/machines/airlock_alien_prying.ogg', 50, 0)
 						forceMove(exit_vent.loc)
 						entry_vent = null
 						var/area/new_area = get_area(loc)
@@ -300,11 +348,16 @@
 			vturfs += T
 	return vturfs
 
+/mob/living/simple_animal/hostile/poison/terror_spider/DestroySurroundings()
+	if(!target)
+		return
+	. = ..()
+
 // --------------------------------------------------------------------------------
 // --------------------- TERROR SPIDERS: MISC AI CODE -----------------------------
 // --------------------------------------------------------------------------------
 
 /mob/living/simple_animal/hostile/poison/terror_spider/proc/UnlockBlastDoors(target_id_tag)
-	for(var/obj/machinery/door/poddoor/P in airlocks)
+	for(var/obj/machinery/door/poddoor/P in GLOB.airlocks)
 		if(P.density && P.id_tag == target_id_tag && P.z == z && !P.operating)
 			P.open()

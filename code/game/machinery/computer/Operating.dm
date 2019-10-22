@@ -6,7 +6,7 @@
 	anchored = 1.0
 	icon_keyboard = "med_key"
 	icon_screen = "crew"
-	circuit = /obj/item/weapon/circuitboard/operating
+	circuit = /obj/item/circuitboard/operating
 	var/obj/machinery/optable/table = null
 	var/mob/living/carbon/human/victim = null
 	light_color = LIGHT_COLOR_PURE_BLUE
@@ -54,46 +54,8 @@
 	add_fingerprint(user)
 	ui_interact(user)
 
-
-///obj/machinery/computer/operating/interact(mob/user)
-//	if( ((get_dist(src, user) > 1) && !isobserver(user)) || (stat & (BROKEN|NOPOWER)) )
-//		if(!istype(user, /mob/living/silicon))
-//			user.unset_machine()
-//			user << browse(null, "window=op")
-//			return
-//
-//	user.set_machine(src)
-//	var/dat = "<HEAD><TITLE>Operating Computer</TITLE><META HTTP-EQUIV='Refresh' CONTENT='10'></HEAD><BODY>\n"
-//	dat += "<A HREF='?src=[user.UID()];mach_close=op'>Close</A><br><br>" //| <A HREF='?src=[user.UID()];update=1'>Update</A>"
-//	if(src.table && (src.table.check_victim()))
-//		src.victim = src.table.victim
-//		dat += {"
-//<B>Patient Information:</B><BR>
-//<BR>
-//<B>Name:</B> [src.victim.real_name]<BR>
-//<B>Age:</B> [src.victim.age]<BR>
-//<B>Blood Type:</B> [src.victim.b_type]<BR>
-//<BR>
-//<B>Health:</B> [src.victim.health]<BR>
-//<B>Brute Damage:</B> [src.victim.getBruteLoss()]<BR>
-//<B>Toxins Damage:</B> [src.victim.getToxLoss()]<BR>
-//<B>Fire Damage:</B> [src.victim.getFireLoss()]<BR>
-//<B>Suffocation Damage:</B> [src.victim.getOxyLoss()]<BR>
-//<B>Patient Status:</B> [src.victim.stat ? "Non-Responsive" : "Awake"]<BR>
-//<B>Heartbeat rate:</B> [victim.get_pulse(GETPULSE_TOOL)]<BR>
-//"}
-//	else
-//		src.victim = null
-//		dat += {"
-//<B>Patient Information:</B><BR>
-//<BR>
-//<B>No Patient Detected</B>
-//"}
-//	user << browse(dat, "window=op")
-//	onclose(user, "op")
-
 /obj/machinery/computer/operating/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)//ui is mostly copy pasta from the sleeper ui
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "op_computer.tmpl", "Patient Monitor", 650, 455)
 		ui.open()
@@ -112,7 +74,7 @@
 		occupantData["stat"] = occupant.stat
 		occupantData["health"] = occupant.health
 		occupantData["maxHealth"] = occupant.maxHealth
-		occupantData["minHealth"] = config.health_threshold_dead
+		occupantData["minHealth"] = HEALTH_THRESHOLD_DEAD
 		occupantData["bruteLoss"] = occupant.getBruteLoss()
 		occupantData["oxyLoss"] = occupant.getOxyLoss()
 		occupantData["toxLoss"] = occupant.getToxLoss()
@@ -123,8 +85,8 @@
 		occupantData["maxTemp"] = 1000 // If you get a burning vox armalis into the sleeper, congratulations
 		// Because we can put simple_animals in here, we need to do something tricky to get things working nice
 		occupantData["temperatureSuitability"] = 0 // 0 is the baseline
-		if(ishuman(occupant) && occupant.species)
-			var/datum/species/sp = occupant.species
+		if(ishuman(occupant) && occupant.dna.species)
+			var/datum/species/sp = occupant.dna.species
 			if(occupant.bodytemperature < sp.cold_level_3)
 				occupantData["temperatureSuitability"] = -3
 			else if(occupant.bodytemperature < sp.cold_level_2)
@@ -147,14 +109,14 @@
 		occupantData["btCelsius"] = occupant.bodytemperature - T0C
 		occupantData["btFaren"] = ((occupant.bodytemperature - T0C) * (9.0/5.0))+ 32
 
-		if(ishuman(occupant) && !(NO_BLOOD in occupant.species.species_traits))
+		if(ishuman(occupant) && !(NO_BLOOD in occupant.dna.species.species_traits))
 			occupantData["pulse"] = occupant.get_pulse(GETPULSE_TOOL)
 			occupantData["hasBlood"] = 1
 			occupantData["bloodLevel"] = round(occupant.blood_volume)
 			occupantData["bloodMax"] = occupant.max_blood
 			occupantData["bloodPercent"] = round(100*(occupant.blood_volume/occupant.max_blood), 0.01) //copy pasta ends here
 
-			occupantData["bloodType"]=occupant.b_type
+			occupantData["bloodType"] = occupant.dna.blood_type
 		if(occupant.surgeries.len)
 			occupantData["inSurgery"] = 1
 			for(var/datum/surgery/procedure in occupant.surgeries)
@@ -215,12 +177,12 @@
 				patientName=table.victim.name
 				atom_say("New patient detected, loading stats")
 				victim = table.victim
-				atom_say("[victim.real_name], [victim.b_type] blood, [victim.stat ? "Non-Responsive" : "Awake"]")
+				atom_say("[victim.real_name], [victim.dna.blood_type] blood, [victim.stat ? "Non-Responsive" : "Awake"]")
 			if(nextTick < world.time)
 				nextTick=world.time + OP_COMPUTER_COOLDOWN
 				if(crit && victim.health <= -50 )
 					playsound(src.loc, 'sound/machines/defib_success.ogg', 50, 0)
 				if(oxy && victim.getOxyLoss()>oxyAlarm)
-					playsound(src.loc, 'sound/machines/defib_saftyOff.ogg', 50, 0)
+					playsound(src.loc, 'sound/machines/defib_saftyoff.ogg', 50, 0)
 				if(healthAnnounce && victim.health <= healthAlarm)
 					atom_say("[round(victim.health)]")

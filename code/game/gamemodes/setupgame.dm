@@ -48,6 +48,7 @@
 	EPILEPSYBLOCK      = getAssignedBlock("EPILEPSY",      numsToAssign)
 	TWITCHBLOCK        = getAssignedBlock("TWITCH",        numsToAssign)
 	NERVOUSBLOCK       = getAssignedBlock("NERVOUS",       numsToAssign)
+	WINGDINGSBLOCK     = getAssignedBlock("WINGDINGS",     numsToAssign)
 
 	// Bay muts
 	BREATHLESSBLOCK    = getAssignedBlock("BREATHLESS",    numsToAssign, DNA_HARD_BOUNDS, good=1)
@@ -74,7 +75,6 @@
 	CHAVBLOCK      = getAssignedBlock("CHAV",       numsToAssign)
 	SWEDEBLOCK     = getAssignedBlock("SWEDE",      numsToAssign)
 	SCRAMBLEBLOCK  = getAssignedBlock("SCRAMBLE",   numsToAssign)
-	TOXICFARTBLOCK = getAssignedBlock("TOXICFART",  numsToAssign, good=1)
 	STRONGBLOCK    = getAssignedBlock("STRONG",     numsToAssign, good=1)
 	HORNSBLOCK     = getAssignedBlock("HORNS",      numsToAssign)
 	COMICBLOCK     = getAssignedBlock("COMIC",      numsToAssign)
@@ -89,7 +89,6 @@
 	JUMPBLOCK      = getAssignedBlock("JUMP",       numsToAssign, DNA_HARD_BOUNDS, good=1)
 	IMMOLATEBLOCK  = getAssignedBlock("IMMOLATE",   numsToAssign)
 	EMPATHBLOCK    = getAssignedBlock("EMPATH",     numsToAssign, DNA_HARD_BOUNDS, good=1)
-	SUPERFARTBLOCK = getAssignedBlock("SUPERFART",  numsToAssign, DNA_HARDER_BOUNDS, good=1)
 	POLYMORPHBLOCK = getAssignedBlock("POLYMORPH",  numsToAssign, DNA_HARDER_BOUNDS, good=1)
 
 	//
@@ -143,20 +142,20 @@
 			qdel(F)
 			continue
 		else
-			ticker.factions.Add(F)
-			ticker.availablefactions.Add(F)
+			SSticker.factions.Add(F)
+			SSticker.availablefactions.Add(F)
 
 	// Populate the syndicate coalition:
-	for(var/datum/faction/syndicate/S in ticker.factions)
-		ticker.syndicate_coalition.Add(S)
+	for(var/datum/faction/syndicate/S in SSticker.factions)
+		SSticker.syndicate_coalition.Add(S)
 
 /proc/setupcult()
-	var/static/picked_cult // Only needs to get picked once
+	var/static/datum/cult_info/picked_cult // Only needs to get picked once
 
 	if(picked_cult)
 		return picked_cult
 
-	var/random_cult = pick(all_cults)
+	var/random_cult = pick(typesof(/datum/cult_info))
 	picked_cult = new random_cult()
 
 	if(!picked_cult)

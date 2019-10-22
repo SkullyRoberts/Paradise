@@ -28,15 +28,63 @@ Thus, the two variables affect pump operation are set in New():
 	var/id = null
 	var/datum/radio_frequency/radio_connection
 
+/obj/machinery/atmospherics/binary/volume_pump/CtrlClick(mob/living/user)
+	if(!istype(user) || user.incapacitated())
+		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
+		return
+	if(!in_range(src, user) && !issilicon(usr))
+		return
+	if(!ishuman(usr) && !issilicon(usr))
+		return
+	toggle()
+	return ..()
+
+/obj/machinery/atmospherics/binary/volume_pump/AICtrlClick()
+	toggle()
+	return ..()
+
+/obj/machinery/atmospherics/binary/volume_pump/AltClick(mob/living/user)
+	if(!istype(user) || user.incapacitated())
+		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
+		return
+	if(!in_range(src, user) && !issilicon(usr))
+		return
+	if(!ishuman(usr) && !issilicon(usr))
+		return
+	set_max()
+	return
+
+/obj/machinery/atmospherics/binary/volume_pump/AIAltClick()
+	set_max()
+	return ..()
+
+/obj/machinery/atmospherics/binary/volume_pump/proc/toggle()
+	if(powered())
+		on = !on
+		update_icon()
+
+/obj/machinery/atmospherics/binary/volume_pump/proc/set_max()
+	if(powered())
+		transfer_rate = MAX_TRANSFER_RATE
+		update_icon()
+
+/obj/machinery/atmospherics/binary/volume_pump/Destroy()
+	if(SSradio)
+		SSradio.remove_object(src, frequency)
+	radio_connection = null
+	return ..()
+
 /obj/machinery/atmospherics/binary/volume_pump/on
 	on = 1
 	icon_state = "map_on"
 
-/obj/machinery/atmospherics/binary/volume_pump/initialize()
+/obj/machinery/atmospherics/binary/volume_pump/atmos_init()
 	..()
 	set_frequency(frequency)
 
 /obj/machinery/atmospherics/binary/volume_pump/update_icon()
+	..()
+	
 	if(!powered())
 		icon_state = "off"
 	else
@@ -76,10 +124,10 @@ Thus, the two variables affect pump operation are set in New():
 	return 1
 
 /obj/machinery/atmospherics/binary/volume_pump/proc/set_frequency(new_frequency)
-	radio_controller.remove_object(src, frequency)
+	SSradio.remove_object(src, frequency)
 	frequency = new_frequency
 	if(frequency)
-		radio_connection = radio_controller.add_object(src, frequency)
+		radio_connection = SSradio.add_object(src, frequency)
 
 /obj/machinery/atmospherics/binary/volume_pump/proc/broadcast_status()
 	if(!radio_connection)
@@ -147,7 +195,7 @@ Thus, the two variables affect pump operation are set in New():
 
 /obj/machinery/atmospherics/binary/volume_pump/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 1, var/master_ui = null, var/datum/topic_state/state = default_state)
 	user.set_machine(src)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "atmos_pump.tmpl", name, 310, 115, state = state)
 		ui.open()
@@ -184,7 +232,7 @@ Thus, the two variables affect pump operation are set in New():
 			investigate_log("was set to [transfer_rate] L/s by [key_name(usr)]", "atmos")
 
 	update_icon()
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 
 /obj/machinery/atmospherics/binary/volume_pump/power_change()
 	var/old_stat = stat
@@ -192,8 +240,16 @@ Thus, the two variables affect pump operation are set in New():
 	if(old_stat != stat)
 		update_icon()
 
-/obj/machinery/atmospherics/binary/volume_pump/attackby(obj/item/weapon/W, mob/user, params)
-	if(!istype(W, /obj/item/weapon/wrench))
+/obj/machinery/atmospherics/binary/volume_pump/attackby(obj/item/W, mob/user, params)
+	if(istype(W, /obj/item/pen))
+		var/t = copytext(stripped_input(user, "Enter the name for the volume pump.", "Rename", name), 1, MAX_NAME_LEN)
+		if(!t)
+			return
+		if(!in_range(src, usr) && loc != usr)
+			return
+		name = t
+		return
+	else if(!istype(W, /obj/item/wrench))
 		return ..()
 	if(!(stat & NOPOWER) && on)
 		to_chat(user, "<span class='alert'>You cannot unwrench this [src], turn it off first.</span>")

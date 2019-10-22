@@ -6,7 +6,7 @@
 	icon_state = "clawmachine_on"
 	density = 1
 	anchored = 1
-	use_power = 1
+	use_power = IDLE_POWER_USE
 	idle_power_usage = 40
 	var/tokens = 0
 	var/freeplay = 0				//for debugging and admin kindness
@@ -22,18 +22,18 @@
 		qdel(src)
 
 /obj/machinery/arcade/examine(mob/user)
-	..(user)
+	. = ..()
 	if(freeplay)
-		to_chat(user, "Someone enabled freeplay on this machine!")
+		. += "Someone enabled freeplay on this machine!"
 	else
 		if(token_price)
-			to_chat(user, "\The [src.name] costs [token_price] credits per play.")
+			. += "\The [src.name] costs [token_price] credits per play."
 		if(!tokens)
-			to_chat(user, "\The [src.name] has no available play credits. Better feed the machine!")
+			. += "\The [src.name] has no available play credits. Better feed the machine!"
 		else if(tokens == 1)
-			to_chat(user, "\The [src.name] has only 1 play credit left!")
+			. += "\The [src.name] has only 1 play credit left!"
 		else
-			to_chat(user, "\The [src.name] has [tokens] play credits!")
+			. += "\The [src.name] has [tokens] play credits!"
 
 /obj/machinery/arcade/attack_hand(mob/user as mob)
 	if(..())
@@ -60,15 +60,15 @@
 		return
 
 /obj/machinery/arcade/attackby(var/obj/item/O as obj, var/mob/user as mob, params)
-	if(istype(O, /obj/item/weapon/screwdriver) && anchored)
+	if(istype(O, /obj/item/screwdriver) && anchored)
 		playsound(src.loc, O.usesound, 50, 1)
 		panel_open = !panel_open
 		to_chat(user, "You [panel_open ? "open" : "close"] the maintenance panel.")
 		update_icon()
 		return
 	if(!freeplay)
-		if(istype(O, /obj/item/weapon/card/id))
-			var/obj/item/weapon/card/id/C = O
+		if(istype(O, /obj/item/card/id))
+			var/obj/item/card/id/C = O
 			if(pay_with_card(C))
 				tokens += 1
 			return
@@ -76,9 +76,11 @@
 			var/obj/item/stack/spacecash/C = O
 			if(pay_with_cash(C, user))
 				tokens += 1
-			return
-	if(panel_open && component_parts && istype(O, /obj/item/weapon/crowbar))
+		return
+	if(panel_open && component_parts && istype(O, /obj/item/crowbar))
 		default_deconstruction_crowbar(O)
+		return
+	return ..()
 
 /obj/machinery/arcade/update_icon()
 	return
@@ -91,7 +93,7 @@
 	cashmoney.use(token_price)
 	return 1
 
-/obj/machinery/arcade/proc/pay_with_card(var/obj/item/weapon/card/id/I, var/mob/user)
+/obj/machinery/arcade/proc/pay_with_card(var/obj/item/card/id/I, var/mob/user)
 	visible_message("<span class='info'>[usr] swipes a card through [src].</span>")
 	var/datum/money_account/customer_account = attempt_account_access_nosec(I.associated_account_number)
 	if(!customer_account)
@@ -112,28 +114,7 @@
 			to_chat(user, "Unable to access account: incorrect credentials.")
 			return 0
 
-	if(token_price > customer_account.money)
-		to_chat(user, "Insufficient funds in account.")
-		return 0
-	else
-		// Okay to move the money at this point
-
-		// debit money from the purchaser's account
-		customer_account.money -= token_price
-
-		// create entry in the purchaser's account log
-		var/datum/transaction/T = new()
-		T.target_name = "[src.name]"
-		T.purpose = "Purchase of [src.name] credit"
-		if(token_price > 0)
-			T.amount = "([token_price])"
-		else
-			T.amount = "[token_price]"
-		T.source_terminal = src.name
-		T.date = current_date_string
-		T.time = worldtime2text()
-		customer_account.transaction_log.Add(T)
-		return 1
+	return customer_account.charge(token_price, null, "Purchase of [name] credit", name, name)
 
 /obj/machinery/arcade/proc/start_play(mob/user as mob)
 	user.set_machine(src)

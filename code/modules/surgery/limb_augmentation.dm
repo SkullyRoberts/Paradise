@@ -1,17 +1,17 @@
 /datum/surgery/limb_augmentation
 	name = "Augment Limb"
 	steps = list(/datum/surgery_step/generic/cut_open, /datum/surgery_step/generic/clamp_bleeders, /datum/surgery_step/generic/retract_skin, /datum/surgery_step/augment)
-	possible_locs = list("chest","l_arm","r_arm","r_leg","l_leg")
+	possible_locs = list("head", "chest","l_arm","r_arm","r_leg","l_leg")
 
 /datum/surgery/limb_augmentation/can_start(mob/user, mob/living/carbon/target)
 	if(ishuman(target))
 		var/mob/living/carbon/human/H = target
-		var/obj/item/organ/external/affected = H.get_organ(user.zone_sel.selecting)
+		var/obj/item/organ/external/affected = H.get_organ(user.zone_selected)
 		if(!affected)
 			return 0
 		if(affected.status & ORGAN_BROKEN) //The arm has to be in prime condition to augment it.
 			return 0
-		if(affected.status & ORGAN_ROBOT)
+		if(affected.is_robotic())
 			return 0
 		return 1
 

@@ -1,7 +1,7 @@
 /proc/issmall(A)
 	if(A && istype(A, /mob/living/carbon/human))
 		var/mob/living/carbon/human/H = A
-		if(H.species && H.species.is_small)
+		if(H.dna.species && H.dna.species.is_small)
 			return 1
  	return 0
 
@@ -16,9 +16,9 @@
 	return 0
 
 /mob/living/carbon/human/isSynthetic()
-	if(get_species() == "Machine")
-		return 1
-	return 0
+	if(ismachine(src))
+		return TRUE
+	return FALSE
 
 /mob/proc/get_screen_colour()
 
@@ -40,28 +40,28 @@
 		return eyes.get_colourmatrix()
 
 /proc/ismindshielded(A) //Checks to see if the person contains a mindshield implant, then checks that the implant is actually inside of them
-	for(var/obj/item/weapon/implant/mindshield/L in A)
+	for(var/obj/item/implant/mindshield/L in A)
 		if(L && L.implanted)
 			return 1
 	return 0
 
 /proc/ismindslave(A) //Checks to see if the person contains a mindslave implant, then checks that the implant is actually inside of them
-	for(var/obj/item/weapon/implant/traitor/T in A)
+	for(var/obj/item/implant/traitor/T in A)
 		if(T && T.implanted)
 			return 1
 	return 0
 
-proc/isLivingSSD(mob/M)
+/proc/isLivingSSD(mob/M)
 	return istype(M) && M.player_logged && M.stat != DEAD
 
-proc/isAntag(A)
+/proc/isAntag(A)
 	if(istype(A, /mob/living/carbon))
 		var/mob/living/carbon/C = A
 		if(C.mind && C.mind.special_role)
 			return 1
 	return 0
 
-proc/isNonCrewAntag(A)
+/proc/isNonCrewAntag(A)
 	if(!isAntag(A))
 		return 0
 
@@ -85,26 +85,51 @@ proc/isNonCrewAntag(A)
 
 	return 1
 
-proc/iscuffed(A)
+/proc/cannotPossess(A)
+	var/mob/dead/observer/G = A
+	if(G.has_enabled_antagHUD == 1 && config.antag_hud_restricted)
+		return 1
+	return 0
+
+
+/proc/iscuffed(A)
 	if(istype(A, /mob/living/carbon))
 		var/mob/living/carbon/C = A
 		if(C.handcuffed)
 			return 1
 	return 0
 
-proc/hassensorlevel(A, var/level)
+/proc/hassensorlevel(A, var/level)
 	var/mob/living/carbon/human/H = A
 	if(istype(H) && istype(H.w_uniform, /obj/item/clothing/under))
 		var/obj/item/clothing/under/U = H.w_uniform
 		return U.sensor_mode >= level
 	return 0
 
-proc/getsensorlevel(A)
+/proc/getsensorlevel(A)
 	var/mob/living/carbon/human/H = A
 	if(istype(H) && istype(H.w_uniform, /obj/item/clothing/under))
 		var/obj/item/clothing/under/U = H.w_uniform
 		return U.sensor_mode
 	return SUIT_SENSOR_OFF
+
+/proc/offer_control(mob/M)
+	to_chat(M, "Control of your mob has been offered to dead players.")
+	log_admin("[key_name(usr)] has offered control of ([key_name(M)]) to ghosts.")
+	var/minhours = input(usr, "Minimum hours required to play [M]?", "Set Min Hrs", 10) as num
+	message_admins("[key_name_admin(usr)] has offered control of ([key_name_admin(M)]) to ghosts with [minhours] hrs playtime")
+	var/list/mob/dead/observer/candidates = pollCandidates("Do you want to play as [M.real_name ? M.real_name : M.name]?", poll_time = 100, min_hours = minhours)
+	var/mob/dead/observer/theghost = null
+
+	if(LAZYLEN(candidates))
+		theghost = pick(candidates)
+		to_chat(M, "Your mob has been taken over by a ghost!")
+		message_admins("[key_name_admin(theghost)] has taken control of ([key_name_admin(M)])")
+		M.ghostize()
+		M.key = theghost.key
+	else
+		to_chat(M, "There were no ghosts willing to take control.")
+		message_admins("No ghosts were willing to take control of [key_name_admin(M)])")
 
 /proc/check_zone(zone)
 	if(!zone)	return "chest"
@@ -170,7 +195,11 @@ proc/getsensorlevel(A)
 		p++
 	return t
 
-proc/slur(phrase, var/list/slurletters = ("'"))//use a different list as an input if you want to make robots slur with $#@%! characters
+/proc/stars_all(list/message_pieces, pr)
+	for(var/datum/multilingual_say_piece/S in message_pieces)
+		S.message = stars(S.message, pr)
+
+/proc/slur(phrase, var/list/slurletters = ("'"))//use a different list as an input if you want to make robots slur with $#@%! characters
 	phrase = html_decode(phrase)
 	var/leng=lentext(phrase)
 	var/counter=lentext(phrase)
@@ -259,6 +288,11 @@ proc/slur(phrase, var/list/slurletters = ("'"))//use a different list as an inpu
 
 	return returntext
 
+/proc/Gibberish_all(list/message_pieces, p)
+	for(var/datum/multilingual_say_piece/S in message_pieces)
+		S.message = Gibberish(S.message, p)
+
+
 proc/muffledspeech(phrase)
 	phrase = html_decode(phrase)
 	var/leng=lentext(phrase)
@@ -276,6 +310,10 @@ proc/muffledspeech(phrase)
 		newphrase+="[newletter]"
 		counter-=1
 	return newphrase
+
+/proc/muffledspeech_all(list/message_pieces)
+	for(var/datum/multilingual_say_piece/S in message_pieces)
+		S.message = muffledspeech(S.message)
 
 
 /proc/shake_camera(mob/M, duration, strength=1)
@@ -301,7 +339,7 @@ proc/muffledspeech(phrase)
 
 
 /proc/findname(msg)
-	for(var/mob/M in mob_list)
+	for(var/mob/M in GLOB.mob_list)
 		if(M.real_name == text("[msg]"))
 			return 1
 	return 0
@@ -349,7 +387,7 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 			if(hud_used && hud_used.action_intent)
 				hud_used.action_intent.icon_state = "[a_intent]"
 
-		else if(isrobot(src) || islarva(src))
+		else if(isrobot(src) || islarva(src) || isanimal(src) || isAI(src))
 			switch(input)
 				if(INTENT_HELP)
 					a_intent = INTENT_HELP
@@ -379,9 +417,6 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 	set name = "Rest"
 	set category = "IC"
 
-	if(world.time < client.move_delay)
-		return
-
 	if(!resting)
 		client.move_delay = world.time + 20
 		to_chat(src, "<span class='notice'>You are now resting.</span>")
@@ -390,16 +425,9 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 		to_chat(src, "<span class='notice'>You are now getting up.</span>")
 		StopResting()
 
-/proc/is_blind(A)
-	if(iscarbon(A))
-		var/mob/living/carbon/C = A
-		if(C.disabilities & BLIND || C.blinded)
-			return 1
-	return 0
-
 /proc/get_multitool(mob/user as mob)
 	// Get tool
-	var/obj/item/device/multitool/P
+	var/obj/item/multitool/P
 	if(isrobot(user) || ishuman(user))
 		P = user.get_active_hand()
 	else if(isAI(user))
@@ -435,7 +463,7 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 			else
 				name = realname
 
-	for(var/mob/M in player_list)
+	for(var/mob/M in GLOB.player_list)
 		if(M.client && ((!istype(M, /mob/new_player) && M.stat == DEAD) || check_rights(R_ADMIN|R_MOD,0,M)) && M.get_preference(CHAT_DEAD))
 			var/follow
 			var/lname
@@ -460,9 +488,9 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 			to_chat(M, "<span class='deadsay'>[lname][follow][message]</span>")
 
 /proc/notify_ghosts(message, ghost_sound = null, enter_link = null, title = null, atom/source = null, image/alert_overlay = null, flashwindow = TRUE, var/action = NOTIFY_JUMP) //Easy notification of ghosts.
-	for(var/mob/dead/observer/O in player_list)
+	for(var/mob/dead/observer/O in GLOB.player_list)
 		if(O.client)
-			to_chat(O, "<span class='ghostalert'>[message][(enter_link) ? " [enter_link]" : ""]<span>")
+			to_chat(O, "<span class='ghostalert'>[message][(enter_link) ? " [enter_link]" : ""]</span>")
 			if(ghost_sound)
 				O << sound(ghost_sound)
 			if(flashwindow)
@@ -491,7 +519,7 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 						A.overlays += alert_overlay
 
 /mob/proc/switch_to_camera(var/obj/machinery/camera/C)
-	if(!C.can_use() || stat || (get_dist(C, src) > 1 || machine != src || blinded || !canmove))
+	if(!C.can_use() || stat || (get_dist(C, src) > 1 || machine != src || !has_vision() || !canmove))
 		return 0
 	check_eye(src)
 	return 1
@@ -520,16 +548,17 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 		var/search_pda = 1
 
 		for(var/A in searching)
-			if( search_id && istype(A,/obj/item/weapon/card/id) )
-				var/obj/item/weapon/card/id/ID = A
+			if( search_id && istype(A,/obj/item/card/id) )
+				var/obj/item/card/id/ID = A
 				if(ID.registered_name == oldname)
 					ID.registered_name = newname
 					ID.name = "[newname]'s ID Card ([ID.assignment])"
+					ID.RebuildHTML()
 					if(!search_pda)	break
 					search_id = 0
 
-			else if( search_pda && istype(A,/obj/item/device/pda) )
-				var/obj/item/device/pda/PDA = A
+			else if( search_pda && istype(A,/obj/item/pda) )
+				var/obj/item/pda/PDA = A
 				if(PDA.owner == oldname)
 					PDA.owner = newname
 					PDA.name = "PDA-[newname] ([PDA.ownjob])"
@@ -547,7 +576,7 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 			objective.explanation_text = copytext(objective.explanation_text, 1, pos)+newname+copytext(objective.explanation_text, pos+length)
 	return 1
 
-/mob/proc/rename_self(var/role, var/allow_numbers=0)
+/mob/proc/rename_self(var/role, var/allow_numbers = FALSE, var/force = FALSE)
 	spawn(0)
 		var/oldname = real_name
 
@@ -555,13 +584,16 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 		var/newname
 
 		for(var/i=1,i<=3,i++)	//we get 3 attempts to pick a suitable name.
-			newname = input(src, "You are a [role]. Would you like to change your name to something else? (You have 3 minutes to select a new name.)", "Name Change", oldname) as text
-			if((world.time - time_passed) > 1800)
+			if(force)
+				newname = clean_input("Pick a new name.", "Name Change", oldname, src)
+			else
+				newname = clean_input("You are a [role]. Would you like to change your name to something else? (You have 3 minutes to select a new name.)", "Name Change", oldname, src)
+			if(((world.time - time_passed) > 1800) && !force)
 				alert(src, "Unfortunately, more than 3 minutes have passed for selecting your name. If you are a robot, use the Namepick verb; otherwise, adminhelp.", "Name Change")
 				return	//took too long
 			newname = reject_bad_name(newname,allow_numbers)	//returns null if the name doesn't meet some basic requirements. Tidies up a few other things like bad-characters.
 
-			for(var/mob/living/M in player_list)
+			for(var/mob/living/M in GLOB.player_list)
 				if(M == src)
 					continue
 				if(!newname || M.real_name == newname)
@@ -626,5 +658,26 @@ var/list/intents = list(INTENT_HELP,INTENT_DISARM,INTENT_GRAB,INTENT_HARM)
 	// Cast to 1/0
 	return !!(client.prefs.toggles & toggleflag)
 
+// Used to make sure that a player has a valid job preference setup, used to knock players out of eligibility for anything if their prefs don't make sense.
+// A "valid job preference setup" in this situation means at least having one job set to low, or not having "return to lobby" enabled
+// Prevents "antag rolling" by setting antag prefs on, all jobs to never, and "return to lobby if preferences not availible"
+// Doing so would previously allow you to roll for antag, then send you back to lobby if you didn't get an antag role
+// This also does some admin notification and logging as well
+/mob/proc/has_valid_preferences()
+	if(!client)
+		return FALSE //Not sure how this would get run without the mob having a client, but let's just be safe.
+	if(client.prefs.alternate_option != RETURN_TO_LOBBY)
+		return TRUE
+	// If they have antags enabled, they're potentially doing this on purpose instead of by accident. Notify admins if so.
+	var/has_antags = FALSE
+	if(client.prefs.be_special.len > 0)
+		has_antags = TRUE
+	if(!client.prefs.check_any_job())
+		to_chat(src, "<span class='danger'>You have no jobs enabled, along with return to lobby if job is unavailable. This makes you ineligible for any round start role, please update your job preferences.</span>")
+		if(has_antags)
+			log_admin("[src.ckey] just got booted back to lobby with no jobs, but antags enabled.")
+			message_admins("[src.ckey] just got booted back to lobby with no jobs enabled, but antag rolling enabled. Likely antag rolling abuse.")
+		return FALSE //This is the only case someone should actually be completely blocked from antag rolling as well
+	return TRUE
 
 #define isterrorspider(A) (istype((A), /mob/living/simple_animal/hostile/poison/terror_spider))

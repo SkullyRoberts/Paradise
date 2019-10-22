@@ -3,7 +3,7 @@
 	icon = 'icons/obj/computer.dmi'
 	icon_keyboard = "rd_key"
 	icon_screen = "ai-fixer"
-	circuit = /obj/item/weapon/circuitboard/aifixer
+	circuit = /obj/item/circuitboard/aifixer
 	req_access = list(access_captain, access_robotics, access_heads)
 	var/mob/living/silicon/ai/occupant = null
 	var/active = 0
@@ -11,7 +11,7 @@
 	light_color = LIGHT_COLOR_PURPLE
 
 /obj/machinery/computer/aifixer/attackby(I as obj, user as mob, params)
-	if(occupant && istype(I, /obj/item/weapon/screwdriver))
+	if(occupant && istype(I, /obj/item/screwdriver))
 		if(stat & BROKEN)
 			..()
 		if(stat & NOPOWER)
@@ -19,21 +19,16 @@
 		else
 			to_chat(user, "<span class='warning'>The screws on [name]'s screen won't budge and it emits a warning beep!.</span>")
 	else
-		..()
+		return ..()
 
 /obj/machinery/computer/aifixer/attack_ai(var/mob/user as mob)
 	ui_interact(user)
 
 /obj/machinery/computer/aifixer/attack_hand(var/mob/user as mob)
-	var/datum/game_mode/nations/mode = get_nations_mode()
-	if(!mode)
-		ui_interact(user)
-	else
-		if(mode.kickoff)
-			to_chat(user, "<span class='warning'>You have been locked out from this console!</span>")
+	ui_interact(user)
 
 /obj/machinery/computer/aifixer/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 
 	if(!ui)
 		ui = new(user, src, ui_key, "ai_fixer.tmpl", "AI System Integrity Restorer", 550, 500)
@@ -64,21 +59,20 @@
 		return 1
 
 	if(href_list["fix"])
-		src.active = 1
-		while(src.occupant.health < 100)
-			src.occupant.adjustOxyLoss(-1)
-			src.occupant.adjustFireLoss(-1)
-			src.occupant.adjustToxLoss(-1)
-			src.occupant.adjustBruteLoss(-1)
-			src.occupant.updatehealth()
-			if(src.occupant.health >= 0 && src.occupant.stat == 2)
-				src.occupant.stat = 0
-				src.occupant.lying = 0
-				dead_mob_list -= src.occupant
-				living_mob_list += src.occupant
+		active = 1
+		while(occupant.health < 100)
+			occupant.adjustOxyLoss(-1, FALSE)
+			occupant.adjustFireLoss(-1, FALSE)
+			occupant.adjustToxLoss(-1, FALSE)
+			occupant.adjustBruteLoss(-1, FALSE)
+			occupant.updatehealth()
+			if(occupant.health >= 0 && occupant.stat == DEAD)
+				occupant.update_revive()
+				occupant.lying = 0
+				update_icon()
 			sleep(10)
-		src.active = 0
-		src.add_fingerprint(usr)
+		active = 0
+		add_fingerprint(usr)
 
 	if(href_list["wireless"])
 		var/wireless = text2num(href_list["wireless"])
@@ -90,7 +84,7 @@
 		if(radio == 0 || radio == 1)
 			occupant.aiRadio.disabledAi = radio
 
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 	update_icon()
 	return
 
@@ -111,7 +105,7 @@
 		else
 			overlays += image(icon,"ai-fixer-empty",overlay_layer)
 
-/obj/machinery/computer/aifixer/transfer_ai(var/interaction, var/mob/user, var/mob/living/silicon/ai/AI, var/obj/item/device/aicard/card)
+/obj/machinery/computer/aifixer/transfer_ai(var/interaction, var/mob/user, var/mob/living/silicon/ai/AI, var/obj/item/aicard/card)
 	if(!..())
 		return
 	//Downloading AI from card to terminal.

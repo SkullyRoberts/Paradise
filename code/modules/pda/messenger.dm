@@ -40,7 +40,7 @@
 		var/convopdas[0]
 		var/pdas[0]
 		for(var/A in PDAs)
-			var/obj/item/device/pda/P = A
+			var/obj/item/pda/P = A
 			var/datum/data/pda/app/messenger/PM = P.find_program(/datum/data/pda/app/messenger)
 
 			if(!P.owner || PM.toff || P == pda || PM.m_hidden)
@@ -88,7 +88,7 @@
 			active_conversation = null
 			latest_post = 0
 		if("Message")
-			var/obj/item/device/pda/P = locate(href_list["target"])
+			var/obj/item/pda/P = locate(href_list["target"])
 			create_message(usr, P)
 			if(href_list["target"] in conversations)            // Need to make sure the message went through, if not welp.
 				active_conversation = href_list["target"]
@@ -103,7 +103,7 @@
 			if(!href_list["target"] || !href_list["plugin"])
 				return
 
-			var/obj/item/device/pda/P = locate(href_list["target"])
+			var/obj/item/pda/P = locate(href_list["target"])
 			if(!P)
 				to_chat(usr, "PDA not found.")
 
@@ -117,7 +117,7 @@
 		if("Autoscroll")
 			auto_scroll = !auto_scroll
 
-/datum/data/pda/app/messenger/proc/create_message(var/mob/living/U, var/obj/item/device/pda/P)
+/datum/data/pda/app/messenger/proc/create_message(var/mob/living/U, var/obj/item/pda/P)
 	var/t = input(U, "Please enter message", name, null) as text|null
 	if(!t)
 		return
@@ -169,18 +169,26 @@
 		if(useTC != 2) // Does our recipient have a broadcaster on their level?
 			to_chat(U, "ERROR: Cannot reach recipient.")
 			return
+
 		useMS.send_pda_message("[P.owner]","[pda.owner]","[t]")
 		tnote.Add(list(list("sent" = 1, "owner" = "[P.owner]", "job" = "[P.ownjob]", "message" = "[t]", "target" = "\ref[P]")))
 		PM.tnote.Add(list(list("sent" = 0, "owner" = "[pda.owner]", "job" = "[pda.ownjob]", "message" = "[t]", "target" = "\ref[pda]")))
 		pda.investigate_log("<span class='game say'>PDA Message - <span class='name'>[U.key] - [pda.owner]</span> -> <span class='name'>[P.owner]</span>: <span class='message'>[t]</span></span>", "pda")
+
+		// Show it to ghosts
+		for(var/mob/M in GLOB.dead_mob_list)
+			if(isobserver(M) && M.client && (M.client.prefs.toggles & CHAT_GHOSTPDA))
+				var/ghost_message = "<span class='name'>[pda.owner]</span> ([ghost_follow_link(pda, ghost=M)]) <span class='game say'>PDA Message</span> --> <span class='name'>[P.owner]</span> ([ghost_follow_link(P, ghost=M)]): <span class='message'>[t]</span>"
+				to_chat(M, "[ghost_message]")
+
 		if(!conversations.Find("\ref[P]"))
 			conversations.Add("\ref[P]")
 		if(!PM.conversations.Find("\ref[pda]"))
 			PM.conversations.Add("\ref[pda]")
 
-		nanomanager.update_user_uis(U, P) // Update the sending user's PDA UI so that they can see the new message
+		SSnanoui.update_user_uis(U, P) // Update the sending user's PDA UI so that they can see the new message
 		PM.notify("<b>Message from [pda.owner] ([pda.ownjob]), </b>\"[t]\" (<a href='?src=[PM.UID()];choice=Message;target=\ref[pda]'>Reply</a>)")
-		log_pda("[usr] (PDA: [src.name]) sent \"[t]\" to [P.name]")
+		log_pda("(PDA: [src.name]) sent \"[t]\" to [P.name]", usr)
 	else
 		to_chat(U, "<span class='notice'>ERROR: Messaging server is not responding.</span>")
 
@@ -194,7 +202,7 @@
 		return
 
 	for(var/A in PDAs)
-		var/obj/item/device/pda/P = A
+		var/obj/item/pda/P = A
 		var/datum/data/pda/app/messenger/PM = P.find_program(/datum/data/pda/app/messenger)
 
 		if(!P.owner || !PM || PM.hidden || P == pda || PM.toff)

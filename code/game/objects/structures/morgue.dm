@@ -16,6 +16,7 @@
 	icon = 'icons/obj/stationobjs.dmi'
 	icon_state = "morgue1"
 	density = 1
+	max_integrity = 400
 	dir = EAST
 	var/obj/structure/m_tray/connected = null
 	var/list/status_descriptors = list(
@@ -27,9 +28,9 @@
 	"The tray contains a body that might be responsive."
 	)
 	anchored = 1.0
-	var/open_sound = 'sound/items/Deconstruct.ogg'
+	var/open_sound = 'sound/items/deconstruct.ogg'
 
-/obj/structure/morgue/initialize()
+/obj/structure/morgue/Initialize()
 	. = ..()
 	update()
 
@@ -92,10 +93,6 @@
 				return
 	return
 
-/obj/structure/morgue/alter_health()
-	return loc
-
-
 /obj/structure/morgue/attack_hand(mob/user as mob)
 	if(connected)
 		for(var/atom/movable/A as mob|obj in connected.loc)
@@ -123,7 +120,7 @@
 	return
 
 /obj/structure/morgue/attackby(P as obj, mob/user as mob, params)
-	if(istype(P, /obj/item/weapon/pen))
+	if(istype(P, /obj/item/pen))
 		var/t = input(user, "What would you like the label to be?", text("[]", name), null)  as text
 		if(user.get_active_hand() != P)
 			return
@@ -136,8 +133,9 @@
 		else
 			name = "Morgue"
 			overlays.Cut()
-	add_fingerprint(user)
-	return
+		add_fingerprint(user)
+		return
+	return ..()
 
 /obj/structure/morgue/relaymove(mob/user as mob)
 	if(user.stat)
@@ -188,6 +186,7 @@
 	var/obj/structure/morgue/connected = null
 	anchored = 1.0
 	pass_flags = LETPASSTHROW
+	max_integrity = 350
 
 
 /obj/structure/m_tray/attack_hand(mob/user as mob)
@@ -211,9 +210,7 @@
 		return
 	O.forceMove(loc)
 	if(user != O)
-		for(var/mob/B in viewers(user, 3))
-			if((B.client && !( B.blinded )))
-				to_chat(B, text("<span class='warning'>[] stuffs [] into []!</span>", user, O, src))
+		user.visible_message("<span class='warning'>[user] stuffs [O] into [src]!</span>")
 	return
 
 /obj/structure/m_tray/Destroy()
@@ -254,7 +251,7 @@
 	var/cremating = 0
 	var/id = 1
 	var/locked = 0
-	var/open_sound = 'sound/items/Deconstruct.ogg'
+	var/open_sound = 'sound/items/deconstruct.ogg'
 
 /obj/structure/crematorium/proc/update()
 	if(connected)
@@ -290,10 +287,6 @@
 				return
 	return
 
-/obj/structure/crematorium/alter_health()
-	return loc
-
-
 /obj/structure/crematorium/attack_hand(mob/user as mob)
 	if(cremating)
 		to_chat(usr, "<span class='warning'>It's locked.</span>")
@@ -322,7 +315,7 @@
 	update()
 
 /obj/structure/crematorium/attackby(P as obj, mob/user as mob, params)
-	if(istype(P, /obj/item/weapon/pen))
+	if(istype(P, /obj/item/pen))
 		var/t = input(user, "What would you like the label to be?", text("[]", name), null)  as text
 		if(user.get_active_hand() != P)
 			return
@@ -333,8 +326,9 @@
 			name = text("Crematorium- '[]'", t)
 		else
 			name = "Crematorium"
-	add_fingerprint(user)
-	return
+		add_fingerprint(user)
+		return
+	return ..()
 
 /obj/structure/crematorium/relaymove(mob/user as mob)
 	if(user.stat || locked)
@@ -371,16 +365,14 @@
 		icon_state = "crema_active"
 
 		for(var/mob/living/M in search_contents_for(/mob/living))
-			if(!M || !isnull(M.gcDestroyed))
+			if(QDELETED(M))
 				continue
 			if(M.stat!=2)
 				M.emote("scream")
 			if(istype(user))
-				M.create_attack_log("<font color='orange'>Has been cremated by [user.name] ([user.ckey])</font>")
-				user.create_attack_log("<font color='red'>Cremated [M.name] ([M.ckey])</font>")
-				log_attack("[user.name] ([user.ckey]) cremated [M.name] ([M.ckey])")
+				add_attack_logs(user, M, "Cremated")
 			M.death(1)
-			if(!M || !isnull(M.gcDestroyed))
+			if(QDELETED(M))
 				continue // Re-check for mobs that delete themselves on death
 			M.ghostize()
 			qdel(M)
@@ -450,9 +442,7 @@
 		return
 	O.forceMove(loc)
 	if(user != O)
-		for(var/mob/B in viewers(user, 3))
-			if((B.client && !( B.blinded )))
-				to_chat(B, text("<span class='warning'>[] stuffs [] into []!</span>", user, O, src))
+		user.visible_message("<span class='warning'>[user] stuffs [O] into [src]!</span>")
 			//Foreach goto(99)
 	return
 
@@ -499,13 +489,3 @@
 			morgue = get(C.loc, /obj/structure/morgue)
 			if(morgue)
 				morgue.update()
-
-/hook/mob_login/proc/update_morgue(var/client/client, var/mob/mob)
-	//Update morgues on login
-	mob.update_morgue()
-	return 1
-
-/hook/mob_logout/proc/update_morgue(var/client/client, var/mob/mob)
-	//Update morgues on logout
-	mob.update_morgue()
-	return 1

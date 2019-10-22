@@ -45,12 +45,12 @@
 
 	for(var/i = 0, i < num_traitors, i++)
 		var/datum/mind/traitor = pick(possible_traitors)
-		traitors += traitor
+		pre_traitors += traitor
 		possible_traitors.Remove(traitor)
 
-	for(var/datum/mind/traitor in traitors)
+	for(var/datum/mind/traitor in pre_traitors)
 		if(!traitor || !istype(traitor))
-			traitors.Remove(traitor)
+			pre_traitors.Remove(traitor)
 			continue
 		if(istype(traitor))
 			traitor.special_role = SPECIAL_ROLE_TRAITOR
@@ -69,32 +69,35 @@
 
 /datum/game_mode/traitor/autotraitor/proc/traitorcheckloop()
 	spawn(9000)
-		if(shuttle_master.emergency.mode >= SHUTTLE_ESCAPE)
+		if(SSshuttle.emergency.mode >= SHUTTLE_ESCAPE)
 			return
 		//message_admins("Performing AutoTraitor Check")
 		var/playercount = 0
 		var/traitorcount = 0
 		var/possible_traitors[0]
-		for(var/mob/living/player in mob_list)
+		for(var/mob/living/player in GLOB.mob_list)
 			if(player.client && player.stat != DEAD)
 				playercount += 1
-			if(player.client && player.mind && player.mind.special_role && player.stat != DEAD)
-				traitorcount += 1
-			if(player.client && player.mind && !player.mind.special_role && player.stat != DEAD)
+				if(!player.mind)
+					continue
+				if(player.mind.special_role)
+					traitorcount += 1
+					continue
 				if(ishuman(player) || isrobot(player) || isAI(player))
-					if(player.client && (ROLE_TRAITOR in player.client.prefs.be_special) && !jobban_isbanned(player, ROLE_TRAITOR) && !jobban_isbanned(player, "Syndicate"))
+					if((ROLE_TRAITOR in player.client.prefs.be_special) && !player.client.skip_antag && !jobban_isbanned(player, ROLE_TRAITOR) && !jobban_isbanned(player, "Syndicate"))
 						possible_traitors += player.mind
 		for(var/datum/mind/player in possible_traitors)
 			for(var/job in restricted_jobs)
 				if(player.assigned_role == job)
 					possible_traitors -= player
-			if(player.current) // Remove mindshield-implanted mobs from the list
-				if(ishuman(player.current))
-					var/mob/living/carbon/human/H = player.current
-					for(var/obj/item/weapon/implant/mindshield/I in H.contents)
-						if(I && I.implanted)
-							possible_traitors -= player
-
+			if(!player.current || !ishuman(player.current)) // Remove mindshield-implanted mobs from the list
+				continue
+			var/mob/living/carbon/human/H = player.current
+			for(var/obj/item/implant/mindshield/I in H.contents)
+				if(I && I.implanted)
+					possible_traitors -= player
+			if(!H.job || H.mind.offstation_role) //Golems, special events stuff, etc.
+				possible_traitors -= player
 		//message_admins("Live Players: [playercount]")
 		//message_admins("Live Traitors: [traitorcount]")
 //		message_admins("Potential Traitors:")
@@ -125,26 +128,8 @@
 				var/mob/living/newtraitor = newtraitormind.current
 				//message_admins("[newtraitor.real_name] is the new Traitor.")
 
-				forge_traitor_objectives(newtraitor.mind)
-
-				if(istype(newtraitor, /mob/living/silicon))
-					add_law_zero(newtraitor)
-				else
-					equip_traitor(newtraitor)
-
-				traitors += newtraitor.mind
 				to_chat(newtraitor, "<span class='danger'>ATTENTION:</span> It is time to pay your debt to the Syndicate...")
-				to_chat(newtraitor, "<B>You are now a traitor.</B>")
-				newtraitor.mind.special_role = SPECIAL_ROLE_TRAITOR
-				var/datum/atom_hud/antag/tatorhud = huds[ANTAG_HUD_TRAITOR]
-				tatorhud.join_hud(newtraitor)
-				set_antag_hud(newtraitor, "hudsyndicate")
-
-				var/obj_count = 1
-				to_chat(newtraitor, "<span class='notice'>Your current objectives:</span>")
-				for(var/datum/objective/objective in newtraitor.mind.objectives)
-					to_chat(newtraitor, "<B>Objective #[obj_count]</B>: [objective.explanation_text]")
-					obj_count++
+				newtraitor.mind.add_antag_datum(/datum/antagonist/traitor)
 			//else
 				//message_admins("No new traitor being added.")
 		//else
@@ -156,19 +141,19 @@
 
 /datum/game_mode/traitor/autotraitor/latespawn(mob/living/carbon/human/character)
 	..()
-	if(shuttle_master.emergency.mode >= SHUTTLE_ESCAPE)
+	if(SSshuttle.emergency.mode >= SHUTTLE_ESCAPE)
 		return
 	//message_admins("Late Join Check")
-	if(character.client && (ROLE_TRAITOR in character.client.prefs.be_special) && !jobban_isbanned(character, ROLE_TRAITOR) && !jobban_isbanned(character, "Syndicate"))
+	if(character.client && (ROLE_TRAITOR in character.client.prefs.be_special) && !character.client.skip_antag && !jobban_isbanned(character, ROLE_TRAITOR) && !jobban_isbanned(character, "Syndicate"))
 		//message_admins("Late Joiner has Be Syndicate")
 		//message_admins("Checking number of players")
 		var/playercount = 0
 		var/traitorcount = 0
-		for(var/mob/living/player in mob_list)
+		for(var/mob/living/player in GLOB.mob_list)
 			if(player.client && player.stat != DEAD)
 				playercount += 1
-			if(player.client && player.mind && player.mind.special_role && player.stat != DEAD)
-				traitorcount += 1
+				if(player.mind && player.mind.special_role)
+					traitorcount += 1
 		//message_admins("Live Players: [playercount]")
 		//message_admins("Live Traitors: [traitorcount]")
 
@@ -191,7 +176,7 @@
 			//message_admins("The probability of a new traitor is [traitor_prob]%")
 			if(prob(traitor_prob))
 				message_admins("New traitor roll passed.  Making a new Traitor.")
-				character.mind.make_Tratior()	//TEMP: Add proper checks for loyalty here. uc_guy
+				character.mind.make_Traitor()	//TEMP: Add proper checks for loyalty here. uc_guy
 			//else
 				//message_admins("New traitor roll failed.  No new traitor.")
 	//else

@@ -40,29 +40,30 @@
 
 /obj/machinery/logic_gate/New()
 	if(tamperproof)		//doing this during New so we don't have to worry about forgetting to set these vars during editting / defining
-		unacidable = 1
+		resistance_flags |= ACID_PROOF
 	..()
-	if(radio_controller)
+	if(SSradio)
 		set_frequency(frequency)
 	component_parts = list()
-	var/obj/item/weapon/circuitboard/logic_gate/LG = new(null)
+	var/obj/item/circuitboard/logic_gate/LG = new(null)
 	LG.set_type(type)
 	component_parts += LG
 	component_parts += new /obj/item/stack/cable_coil(null, 1)
 
-/obj/machinery/logic_gate/initialize()
+/obj/machinery/logic_gate/Initialize()
 	..()
 	set_frequency(frequency)
 
 /obj/machinery/logic_gate/proc/set_frequency(new_frequency)
-	radio_controller.remove_object(src, frequency)
+	SSradio.remove_object(src, frequency)
 	frequency = new_frequency
-	radio_connection = radio_controller.add_object(src, frequency, RADIO_LOGIC)
+	radio_connection = SSradio.add_object(src, frequency, RADIO_LOGIC)
 	return
 
 /obj/machinery/logic_gate/Destroy()
-	if(radio_controller)
-		radio_controller.remove_object(src,frequency)
+	if(SSradio)
+		SSradio.remove_object(src, frequency)
+	radio_connection = null
 	return ..()
 
 /obj/machinery/logic_gate/process()
@@ -140,7 +141,7 @@
 					input2_state = LOGIC_OFF
 			return
 
-/obj/machinery/logic_gate/multitool_menu(var/mob/user, var/obj/item/device/multitool/P)
+/obj/machinery/logic_gate/multitool_menu(var/mob/user, var/obj/item/multitool/P)
 	var/input1_state_string
 	var/input2_state_string
 	var/output_state_string
@@ -201,16 +202,17 @@
 	if(tamperproof)
 		to_chat(user, "<span class='warning'>The [src] appears to be tamperproofed! You can't interact with it!</span>")
 		return 0
-	if(istype(O, /obj/item/device/multitool))
+	if(istype(O, /obj/item/multitool))
 		update_multitool_menu(user)
 		return 1
-	if(istype(O, /obj/item/weapon/screwdriver))
+	if(istype(O, /obj/item/screwdriver))
 		panel_open = !panel_open
 		to_chat(user, "<span class='notice'>You [panel_open ? "open" : "close"] the access panel.</span>")
 		return 1
-	if(panel_open && istype(O, /obj/item/weapon/crowbar))
+	if(panel_open && istype(O, /obj/item/crowbar))
 		default_deconstruction_crowbar(O)
 		return 1
+	return ..()
 
 //////////////////////////////////////
 //			Attack procs			//
@@ -260,10 +262,9 @@
 		return 0
 	..()
 
-/obj/machinery/logic_gate/blob_act()
-	if(tamperproof)
-		return 0
-	..()
+/obj/machinery/logic_gate/blob_act(obj/structure/blob/B)
+	if(!tamperproof)
+		return ..()
 
 /obj/machinery/logic_gate/singularity_act()
 	if(tamperproof)

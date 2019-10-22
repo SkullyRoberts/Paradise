@@ -1,6 +1,6 @@
-/obj/item/weapon/gun/medbeam
+/obj/item/gun/medbeam
 	name = "Medical Beamgun"
-	desc = "Delivers medical nanites in a focused beam."
+	desc = "Delivers volatile medical nanites in a focused beam. Don't cross the beams!"
 	icon = 'icons/obj/chronos.dmi'
 	icon_state = "chronogun"
 	item_state = "chronogun"
@@ -15,26 +15,29 @@
 
 	weapon_weight = WEAPON_MEDIUM
 
-/obj/item/weapon/gun/medbeam/New()
+/obj/item/gun/medbeam/New()
 	..()
-	processing_objects.Add(src)
+	START_PROCESSING(SSobj, src)
 
-/obj/item/weapon/gun/medbeam/Destroy()
-	processing_objects.Remove(src)
+/obj/item/gun/medbeam/Destroy()
+	STOP_PROCESSING(SSobj, src)
 	return ..()
 
-/obj/item/weapon/gun/medbeam/dropped(mob/user)
+/obj/item/gun/medbeam/handle_suicide()
+	return
+
+/obj/item/gun/medbeam/dropped(mob/user)
 	..()
 	LoseTarget()
 
-/obj/item/weapon/gun/medbeam/proc/LoseTarget()
+/obj/item/gun/medbeam/proc/LoseTarget()
 	if(active)
 		qdel(current_beam)
 		active = 0
 		on_beam_release(current_target)
 	current_target = null
 
-/obj/item/weapon/gun/medbeam/process_fire(atom/target as mob|obj|turf, mob/living/user as mob|obj, message = 1, params, zone_override)
+/obj/item/gun/medbeam/process_fire(atom/target as mob|obj|turf, mob/living/user as mob|obj, message = 1, params, zone_override)
 	add_fingerprint(user)
 
 	if(current_target)
@@ -50,9 +53,9 @@
 
 	feedback_add_details("gun_fired","[type]")
 
-/obj/item/weapon/gun/medbeam/process()
-	var/mob/living/carbon/human/H = loc
-	if(!istype(H))
+/obj/item/gun/medbeam/process()
+	var/source = loc
+	if(!ishuman(source) && !isrobot(source))
 		LoseTarget()
 		return
 
@@ -65,15 +68,15 @@
 
 	last_check = world.time
 
-	if(get_dist(H,current_target)>max_range || !los_check(H,current_target))
+	if(get_dist(source,current_target)>max_range || !los_check(source,current_target))
 		LoseTarget()
-		to_chat(H, "<span class='warning'>You lose control of the beam!</span>")
+		to_chat(source, "<span class='warning'>You lose control of the beam!</span>")
 		return
 
 	if(current_target)
 		on_beam_tick(current_target)
 
-/obj/item/weapon/gun/medbeam/proc/los_check(mob/user,mob/target)
+/obj/item/gun/medbeam/proc/los_check(mob/user,mob/target)
 	var/turf/user_turf = user.loc
 	if(!istype(user_turf))
 		return 0
@@ -89,27 +92,26 @@
 				return 0
 		for(var/obj/effect/ebeam/medical/B in turf)// Don't cross the str-beams!
 			if(B.owner != current_beam)
+				turf.visible_message("<span class='boldwarning'>The medbeams cross and EXPLODE!</span>")
 				explosion(B.loc,0,3,5,8)
 				qdel(dummy)
 				return 0
 	qdel(dummy)
 	return 1
 
-/obj/item/weapon/gun/medbeam/proc/on_beam_hit(var/mob/living/target)
+/obj/item/gun/medbeam/proc/on_beam_hit(var/mob/living/target)
 	return
 
-/obj/item/weapon/gun/medbeam/proc/on_beam_tick(var/mob/living/target)
+/obj/item/gun/medbeam/proc/on_beam_tick(var/mob/living/target)
 	target.adjustBruteLoss(-4)
 	target.adjustFireLoss(-4)
 	if(ishuman(target))
 		var/var/mob/living/carbon/human/H = target
 		for(var/obj/item/organ/external/E in H.bodyparts)
 			if(prob(10))
-				if(E.mend_fracture())
-					E.perma_injury = 0
-	return
+				E.mend_fracture()
 
-/obj/item/weapon/gun/medbeam/proc/on_beam_release(var/mob/living/target)
+/obj/item/gun/medbeam/proc/on_beam_release(var/mob/living/target)
 	return
 
 /obj/effect/ebeam/medical

@@ -28,17 +28,59 @@ Thus, the two variables affect pump operation are set in New():
 	var/id = null
 	var/datum/radio_frequency/radio_connection
 
-/obj/machinery/atmospherics/binary/pump/highcap
-	name = "High capacity gas pump"
-	desc = "A high capacity pump"
+/obj/machinery/atmospherics/binary/pump/CtrlClick(mob/living/user)
+	if(!istype(user) || user.incapacitated())
+		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
+		return
+	if(!in_range(src, user) && !issilicon(usr))
+		return
+	if(!ishuman(usr) && !issilicon(usr))
+		return
+	toggle()
+	return ..()
 
-	target_pressure = 15000000
+/obj/machinery/atmospherics/binary/pump/AICtrlClick()
+	toggle()
+	return ..()
+
+/obj/machinery/atmospherics/binary/pump/AltClick(mob/living/user)
+	if(!istype(user) || user.incapacitated())
+		to_chat(user, "<span class='warning'>You can't do that right now!</span>")
+		return
+	if(!in_range(src, user) && !issilicon(usr))
+		return
+	if(!ishuman(usr) && !issilicon(usr))
+		return
+	set_max()
+	return
+
+/obj/machinery/atmospherics/binary/pump/AIAltClick()
+	set_max()
+	return ..()
+
+/obj/machinery/atmospherics/binary/pump/proc/toggle()
+	if(powered())
+		on = !on
+		update_icon()
+
+/obj/machinery/atmospherics/binary/pump/proc/set_max()
+	if(powered())
+		target_pressure = MAX_OUTPUT_PRESSURE
+		update_icon()
+
+/obj/machinery/atmospherics/binary/pump/Destroy()
+	if(SSradio)
+		SSradio.remove_object(src, frequency)
+	radio_connection = null
+	return ..()
 
 /obj/machinery/atmospherics/binary/pump/on
 	icon_state = "map_on"
 	on = 1
 
 /obj/machinery/atmospherics/binary/pump/update_icon()
+	..()
+	
 	if(!powered())
 		icon_state = "off"
 	else
@@ -80,10 +122,10 @@ Thus, the two variables affect pump operation are set in New():
 
 //Radio remote control
 /obj/machinery/atmospherics/binary/pump/proc/set_frequency(new_frequency)
-	radio_controller.remove_object(src, frequency)
+	SSradio.remove_object(src, frequency)
 	frequency = new_frequency
 	if(frequency)
-		radio_connection = radio_controller.add_object(src, frequency, filter = RADIO_ATMOSIA)
+		radio_connection = SSradio.add_object(src, frequency, filter = RADIO_ATMOSIA)
 
 /obj/machinery/atmospherics/binary/pump/proc/broadcast_status()
 	if(!radio_connection)
@@ -104,7 +146,7 @@ Thus, the two variables affect pump operation are set in New():
 	radio_connection.post_signal(src, signal, filter = RADIO_ATMOSIA)
 	return 1
 
-/obj/machinery/atmospherics/binary/pump/initialize()
+/obj/machinery/atmospherics/binary/pump/atmos_init()
 	..()
 	if(frequency)
 		set_frequency(frequency)
@@ -157,7 +199,7 @@ Thus, the two variables affect pump operation are set in New():
 
 /obj/machinery/atmospherics/binary/pump/ui_interact(mob/user, ui_key = "main", datum/nanoui/ui = null, force_open = 1, var/master_ui = null, var/datum/topic_state/state = default_state)
 	user.set_machine(src)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "atmos_pump.tmpl", name, 385, 115, state = state)
 		ui.open()
@@ -194,7 +236,7 @@ Thus, the two variables affect pump operation are set in New():
 			investigate_log("was set to [target_pressure] kPa by [key_name(usr)]", "atmos")
 
 	update_icon()
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 
 /obj/machinery/atmospherics/binary/pump/power_change()
 	var/old_stat = stat
@@ -202,8 +244,16 @@ Thus, the two variables affect pump operation are set in New():
 	if(old_stat != stat)
 		update_icon()
 
-/obj/machinery/atmospherics/binary/pump/attackby(obj/item/weapon/W, mob/user, params)
-	if(!istype(W, /obj/item/weapon/wrench))
+/obj/machinery/atmospherics/binary/pump/attackby(obj/item/W, mob/user, params)
+	if(istype(W, /obj/item/pen))
+		var/t = copytext(stripped_input(user, "Enter the name for the pump.", "Rename", name), 1, MAX_NAME_LEN)
+		if(!t)
+			return
+		if(!in_range(src, usr) && loc != usr)
+			return
+		name = t
+		return
+	else if(!istype(W, /obj/item/wrench))
 		return ..()
 	if(!(stat & NOPOWER) && on)
 		to_chat(user, "<span class='alert'>You cannot unwrench this [src], turn it off first.</span>")

@@ -41,7 +41,7 @@ In my current plan for it, 'solid' will be defined as anything with density == 1
 		notify_ghosts("\A [src] is inbound!",
 				enter_link="<a href=?src=[UID()];follow=1>(Click to follow)</a>",
 				source=src, action=NOTIFY_FOLLOW)
-	poi_list |= src
+	GLOB.poi_list |= src
 	if(end && end.z==z_original)
 		walk_towards(src, destination, move_delay)
 
@@ -52,11 +52,17 @@ In my current plan for it, 'solid' will be defined as anything with density == 1
 			ghost.ManualFollow(src)
 
 /obj/effect/immovablerod/Destroy()
-	poi_list.Remove(src)
+	GLOB.poi_list.Remove(src)
 	return ..()
 
-/obj/effect/immovablerod/ex_act(test)
+/obj/effect/immovablerod/ex_act(severity)
 	return 0
+
+/obj/effect/immovablerod/singularity_act()
+	return
+
+/obj/effect/immovablerod/singularity_pull()
+	return
 
 /obj/effect/immovablerod/Bump(atom/clong)
 	if(prob(10))

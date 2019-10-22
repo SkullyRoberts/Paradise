@@ -1,4 +1,4 @@
-/mob/living/silicon/robot/emote(var/act, var/m_type=1, var/message = null)
+/mob/living/silicon/robot/emote(act, m_type=1, message = null, force)
 	var/param = null
 	if(findtext(act, "-", 1, null))
 		var/t1 = findtext(act, "-", 1, null)
@@ -6,7 +6,7 @@
 		act = copytext(act, 1, t1)
 
 	//Emote Cooldown System (it's so simple!)
-	// proc/handle_emote_CD() located in [code\modules\mob\emote.dm]
+	//handle_emote_CD() located in [code\modules\mob\emote.dm]
 	var/on_CD = 0
 	act = lowertext(act)
 	switch(act)
@@ -17,7 +17,7 @@
 		else
 			on_CD = 0	//If it doesn't induce the cooldown, we won't check for the cooldown
 
-	if(on_CD == 1)		// Check if we need to suppress the emote attempt.
+	if(!force && on_CD == 1)		// Check if we need to suppress the emote attempt.
 		return			// Suppress emote, you're still cooling off.
 	//--FalseIncarnate
 
@@ -135,7 +135,7 @@
 
 
 		if("law")
-			if(istype(module,/obj/item/weapon/robot_module/security))
+			if(istype(module,/obj/item/robot_module/security))
 				message = "<B>[src]</B> shows its legal authorization barcode."
 
 				playsound(src.loc, 'sound/voice/biamthelaw.ogg', 50, 0)
@@ -144,7 +144,7 @@
 				to_chat(src, "You are not THE LAW, pal.")
 
 		if("halt")
-			if(istype(module,/obj/item/weapon/robot_module/security))
+			if(istype(module,/obj/item/robot_module/security))
 				message = "<B>[src]</B>'s speakers skreech, \"Halt! Security!\"."
 
 				playsound(src.loc, 'sound/voice/halt.ogg', 50, 0)
@@ -160,11 +160,14 @@
 		if("help")
 			to_chat(src, "salute, bow-(none)/mob, clap, flap, aflap, twitch, twitches, nod, deathgasp, glare-(none)/mob, stare-(none)/mob, look,\n law, halt")
 
-	..(act, m_type, message)
+	..()
 
 /mob/living/silicon/robot/verb/powerwarn()
 	set category = "Robot Commands"
 	set name = "Power Warning"
+
+	if(handle_emote_CD(50))
+		return
 
 	if(!is_component_functioning("power cell") || !cell || !cell.charge)
 		visible_message("The power warning light on <span class='name'>[src]</span> flashes urgently.",\

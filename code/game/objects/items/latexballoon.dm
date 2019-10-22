@@ -15,7 +15,7 @@
 	QDEL_NULL(air_contents)
 	return ..()
 
-/obj/item/latexballon/proc/blow(obj/item/weapon/tank/tank, mob/user)
+/obj/item/latexballon/proc/blow(obj/item/tank/tank, mob/user)
 	if(icon_state == "latexballon_bursted")
 		return
 	icon_state = "latexballon_blow"
@@ -28,7 +28,7 @@
 /obj/item/latexballon/proc/burst()
 	if(!air_contents || icon_state != "latexballon_blow")
 		return
-	playsound(src, 'sound/weapons/Gunshot.ogg', 100, 1)
+	playsound(src, 'sound/weapons/gunshots/gunshot.ogg', 100, 1)
 	icon_state = "latexballon_bursted"
 	item_state = "lgloves"
 	if(isliving(loc))
@@ -40,23 +40,25 @@
 /obj/item/latexballon/ex_act(severity)
 	burst()
 	switch(severity)
-		if(1)
+		if (1)
 			qdel(src)
-		if(2)
-			if(prob(50))
+		if (2)
+			if (prob(50))
 				qdel(src)
 
-/obj/item/latexballon/bullet_act()
-	burst()
+/obj/item/latexballon/bullet_act(obj/item/projectile/P)
+	if(!P.nodamage)
+		burst()
+	return ..()
 
 /obj/item/latexballon/temperature_expose(datum/gas_mixture/air, temperature, volume)
+	..()
 	if(temperature > T0C+100)
 		burst()
-	return
 
 /obj/item/latexballon/attackby(obj/item/W, mob/user, params)
-	if(istype(W, /obj/item/weapon/tank))
-		var/obj/item/weapon/tank/T = W
+	if(istype(W, /obj/item/tank))
+		var/obj/item/tank/T = W
 		blow(T, user)
 		return
 	if(is_sharp(W) || is_hot(W) || is_pointed(W))

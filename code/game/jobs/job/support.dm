@@ -19,11 +19,11 @@
 
 	uniform = /obj/item/clothing/under/rank/bartender
 	suit = /obj/item/clothing/suit/armor/vest
-	belt = /obj/item/weapon/storage/belt/bandolier/full
+	belt = /obj/item/storage/belt/bandolier/full
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_service
+	l_ear = /obj/item/radio/headset/headset_service
 	glasses = /obj/item/clothing/glasses/sunglasses/reagent
-	pda = /obj/item/device/pda/bar
+	pda = /obj/item/pda/bar
 	backpack_contents = list(
 		/obj/item/toy/russian_revolver = 1
 	)
@@ -34,7 +34,8 @@
 		return
 
 	H.dna.SetSEState(SOBERBLOCK,1)
-	H.mutations += SOBER
+	genemutcheck(H, SOBERBLOCK, null, MUTCHK_FORCED)
+	H.dna.default_blocks.Add(SOBERBLOCK)
 	H.check_mutations = 1
 
 
@@ -62,9 +63,15 @@
 	suit = /obj/item/clothing/suit/chef
 	shoes = /obj/item/clothing/shoes/black
 	head = /obj/item/clothing/head/chefhat
-	l_ear = /obj/item/device/radio/headset/headset_service
-	pda = /obj/item/device/pda/chef
+	l_ear = /obj/item/radio/headset/headset_service
+	pda = /obj/item/pda/chef
 
+/datum/outfit/job/chef/post_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
+	..()
+	if(visualsOnly)
+		return
+	var/datum/martial_art/cqc/under_siege/justacook = new
+	justacook.teach(H)
 
 
 /datum/job/hydro
@@ -90,13 +97,13 @@
 	suit = /obj/item/clothing/suit/apron
 	gloves = /obj/item/clothing/gloves/botanic_leather
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_service
-	suit_store = /obj/item/device/plant_analyzer
-	pda = /obj/item/device/pda/botanist
+	l_ear = /obj/item/radio/headset/headset_service
+	suit_store = /obj/item/plant_analyzer
+	pda = /obj/item/pda/botanist
 
-	backpack = /obj/item/weapon/storage/backpack/botany
-	satchel = /obj/item/weapon/storage/backpack/satchel_hyd
-	dufflebag = /obj/item/weapon/storage/backpack/duffel/hydro
+	backpack = /obj/item/storage/backpack/botany
+	satchel = /obj/item/storage/backpack/satchel_hyd
+	dufflebag = /obj/item/storage/backpack/duffel/hydro
 
 
 
@@ -121,11 +128,11 @@
 
 	uniform = /obj/item/clothing/under/rank/cargo
 	shoes = /obj/item/clothing/shoes/brown
-	l_ear = /obj/item/device/radio/headset/headset_cargo
+	l_ear = /obj/item/radio/headset/headset_cargo
 	glasses = /obj/item/clothing/glasses/sunglasses
-	id = /obj/item/weapon/card/id/supply
-	l_hand = /obj/item/weapon/clipboard
-	pda = /obj/item/device/pda/quartermaster
+	id = /obj/item/card/id/supply
+	l_hand = /obj/item/clipboard
+	pda = /obj/item/pda/quartermaster
 
 
 
@@ -149,9 +156,9 @@
 
 	uniform = /obj/item/clothing/under/rank/cargotech
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_cargo
-	id = /obj/item/weapon/card/id/supply
-	pda = /obj/item/device/pda/cargo
+	l_ear = /obj/item/radio/headset/headset_cargo
+	id = /obj/item/card/id/supply
+	pda = /obj/item/pda/cargo
 
 
 
@@ -159,8 +166,8 @@
 	title = "Shaft Miner"
 	flag = MINER
 	department_flag = SUPPORT
-	total_positions = 3
-	spawn_positions = 3
+	total_positions = 6
+	spawn_positions = 8
 	is_supply = 1
 	supervisors = "the quartermaster"
 	department_head = list("Head of Personnel")
@@ -174,23 +181,54 @@
 	name = "Shaft Miner"
 	jobtype = /datum/job/mining
 
-	uniform = /obj/item/clothing/under/rank/miner
-	gloves = /obj/item/clothing/gloves/fingerless
-	shoes = /obj/item/clothing/shoes/workboots
-	l_ear = /obj/item/device/radio/headset/headset_cargo/mining
-	id = /obj/item/weapon/card/id/supply
-	l_pocket = /obj/item/weapon/reagent_containers/food/pill/patch/styptic
-	r_pocket = /obj/item/device/flashlight/seclite
-	pda = /obj/item/device/pda/shaftminer
+	l_ear = /obj/item/radio/headset/headset_cargo/mining
+	shoes = /obj/item/clothing/shoes/workboots/mining
+	gloves = /obj/item/clothing/gloves/color/black
+	uniform = /obj/item/clothing/under/rank/miner/lavaland
+	l_pocket = /obj/item/reagent_containers/hypospray/autoinjector/survival
+	r_pocket = /obj/item/storage/bag/ore
+	id = /obj/item/card/id/supply
+	pda = /obj/item/pda/shaftminer
 	backpack_contents = list(
-		/obj/item/weapon/mining_voucher = 1,
-		/obj/item/weapon/storage/bag/ore = 1
+		/obj/item/flashlight/seclite=1,\
+		/obj/item/kitchen/knife/combat/survival=1,\
+		/obj/item/mining_voucher=1,\
+		/obj/item/stack/marker_beacon/ten=1
 	)
 
-	backpack = /obj/item/weapon/storage/backpack/industrial
-	satchel = /obj/item/weapon/storage/backpack/satchel_eng
+	backpack = /obj/item/storage/backpack/explorer
+	satchel = /obj/item/storage/backpack/satchel/explorer
+	box = /obj/item/storage/box/survival_mining
 
+/datum/outfit/job/mining/equipped
+	name = "Shaft Miner"
 
+	suit = /obj/item/clothing/suit/hooded/explorer
+	mask = /obj/item/clothing/mask/gas/explorer
+	glasses = /obj/item/clothing/glasses/meson
+	suit_store = /obj/item/tank/emergency_oxygen
+	internals_slot = slot_s_store
+	backpack_contents = list(
+		/obj/item/flashlight/seclite=1,\
+		/obj/item/kitchen/knife/combat/survival=1,
+		/obj/item/mining_voucher=1,
+		/obj/item/t_scanner/adv_mining_scanner/lesser=1,
+		/obj/item/gun/energy/kinetic_accelerator=1,\
+		/obj/item/stack/marker_beacon/ten=1
+	)
+
+/datum/outfit/job/miner/equipped/post_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
+	..()
+	if(visualsOnly)
+		return
+	if(istype(H.wear_suit, /obj/item/clothing/suit/hooded))
+		var/obj/item/clothing/suit/hooded/S = H.wear_suit
+		S.ToggleHood()
+
+/datum/outfit/job/miner/equipped/hardsuit
+	name = "Shaft Miner (Equipment + Hardsuit)"
+	suit = /obj/item/clothing/suit/space/hardsuit/mining
+	mask = /obj/item/clothing/mask/breath
 
 //Griff //BS12 EDIT
 
@@ -215,43 +253,68 @@
 	uniform = /obj/item/clothing/under/rank/clown
 	shoes = /obj/item/clothing/shoes/clown_shoes
 	mask = /obj/item/clothing/mask/gas/clown_hat
-	l_pocket = /obj/item/weapon/bikehorn
-	l_ear = /obj/item/device/radio/headset/headset_service
-	id = /obj/item/weapon/card/id/clown
-	pda = /obj/item/device/pda/clown
+	l_pocket = /obj/item/bikehorn
+	l_ear = /obj/item/radio/headset/headset_service
+	id = /obj/item/card/id/clown
+	pda = /obj/item/pda/clown
 	backpack_contents = list(
-		/obj/item/weapon/reagent_containers/food/snacks/grown/banana = 1,
-		/obj/item/weapon/stamp/clown = 1,
+		/obj/item/reagent_containers/food/snacks/grown/banana = 1,
+		/obj/item/stamp/clown = 1,
 		/obj/item/toy/crayon/rainbow = 1,
-		/obj/item/weapon/storage/fancy/crayons = 1,
-		/obj/item/weapon/reagent_containers/spray/waterflower = 1,
-		/obj/item/weapon/reagent_containers/food/drinks/bottle/bottleofbanana = 1,
-		/obj/item/device/instrument/bikehorn = 1
+		/obj/item/storage/fancy/crayons = 1,
+		/obj/item/reagent_containers/spray/waterflower = 1,
+		/obj/item/reagent_containers/food/drinks/bottle/bottleofbanana = 1,
+		/obj/item/instrument/bikehorn = 1
 	)
 
-	backpack = /obj/item/weapon/storage/backpack/clown
-	satchel = /obj/item/weapon/storage/backpack/clown
-	dufflebag = /obj/item/weapon/storage/backpack/duffel/clown
+	backpack = /obj/item/storage/backpack/clown
+	satchel = /obj/item/storage/backpack/clown
+	dufflebag = /obj/item/storage/backpack/duffel/clown
 
 /datum/outfit/job/clown/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	. = ..()
 	if(H.gender == FEMALE)
-		mask = /obj/item/clothing/mask/gas/sexyclown
-		uniform = /obj/item/clothing/under/sexyclown
+		mask = /obj/item/clothing/mask/gas/clown_hat/sexy
+		uniform = /obj/item/clothing/under/rank/clown/sexy
 
 /datum/outfit/job/clown/post_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
 	. = ..()
 	if(visualsOnly)
 		return
 
-	if(H.get_species() == "Machine")
+	if(ismachine(H))
 		var/obj/item/organ/internal/cyberimp/brain/clown_voice/implant = new
 		implant.insert(H)
 
-	H.mutations.Add(CLUMSY)
-	H.dna.SetSEState(COMICBLOCK, 1, 1)
-	genemutcheck(H, COMICBLOCK, null, MUTCHK_FORCED)
+	H.dna.SetSEState(CLUMSYBLOCK, TRUE)
+	genemutcheck(H, CLUMSYBLOCK, null, MUTCHK_FORCED)
+	H.dna.default_blocks.Add(CLUMSYBLOCK)
+	if(!ismachine(H))
+		H.dna.SetSEState(COMICBLOCK, TRUE)
+		genemutcheck(H, COMICBLOCK, null, MUTCHK_FORCED)
+		H.dna.default_blocks.Add(COMICBLOCK)
+	H.check_mutations = TRUE
 
+//action given to antag clowns
+/datum/action/innate/toggle_clumsy
+	name = "Toggle Clown Clumsy"
+	button_icon_state = "clown"
+
+/datum/action/innate/toggle_clumsy/Activate()
+	var/mob/living/carbon/human/H = owner
+	H.mutations.Add(CLUMSY)
+	active = TRUE
+	background_icon_state = "bg_spell"
+	UpdateButtonIcon()
+	to_chat(H, "<span class='notice'>You start acting clumsy to throw suspicions off. Focus again before using weapons.</span>")
+
+/datum/action/innate/toggle_clumsy/Deactivate()
+	var/mob/living/carbon/human/H = owner
+	H.mutations.Remove(CLUMSY)
+	active = FALSE
+	background_icon_state = "bg_default"
+	UpdateButtonIcon()
+	to_chat(H, "<span class='notice'>You focus and can now use weapons regularly.</span>")
 
 /datum/job/mime
 	title = "Mime"
@@ -273,18 +336,18 @@
 
 	uniform = /obj/item/clothing/under/mime
 	suit = /obj/item/clothing/suit/suspenders
-	back = /obj/item/weapon/storage/backpack/mime
+	back = /obj/item/storage/backpack/mime
 	gloves = /obj/item/clothing/gloves/color/white
 	shoes = /obj/item/clothing/shoes/black
 	head = /obj/item/clothing/head/beret
 	mask = /obj/item/clothing/mask/gas/mime
-	l_ear = /obj/item/device/radio/headset/headset_service
-	id = /obj/item/weapon/card/id/mime
-	pda = /obj/item/device/pda/mime
+	l_ear = /obj/item/radio/headset/headset_service
+	id = /obj/item/card/id/mime
+	pda = /obj/item/pda/mime
 	backpack_contents = list(
 		/obj/item/toy/crayon/mime = 1,
-		/obj/item/weapon/reagent_containers/food/drinks/bottle/bottleofnothing = 1,
-		/obj/item/weapon/cane = 1
+		/obj/item/reagent_containers/food/drinks/bottle/bottleofnothing = 1,
+		/obj/item/cane = 1
 	)
 
 /datum/outfit/job/mime/pre_equip(mob/living/carbon/human/H, visualsOnly = FALSE)
@@ -326,8 +389,8 @@
 
 	uniform = /obj/item/clothing/under/rank/janitor
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_service
-	pda = /obj/item/device/pda/janitor
+	l_ear = /obj/item/radio/headset/headset_service
+	pda = /obj/item/pda/janitor
 
 
 //More or less assistants
@@ -352,11 +415,11 @@
 
 	uniform = /obj/item/clothing/under/suit_jacket/red
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_service
-	l_pocket = /obj/item/device/laser_pointer
-	r_pocket = /obj/item/weapon/barcodescanner
-	l_hand = /obj/item/weapon/storage/bag/books
-	pda = /obj/item/device/pda/librarian
+	l_ear = /obj/item/radio/headset/headset_service
+	l_pocket = /obj/item/laser_pointer
+	r_pocket = /obj/item/barcodescanner
+	l_hand = /obj/item/storage/bag/books
+	pda = /obj/item/pda/librarian
 
 /datum/job/barber
 	title = "Barber"
@@ -379,9 +442,8 @@
 
 	uniform = /obj/item/clothing/under/barber
 	shoes = /obj/item/clothing/shoes/black
-	l_ear = /obj/item/device/radio/headset/headset_service
+	l_ear = /obj/item/radio/headset/headset_service
 	backpack_contents = list(
-		/obj/item/clothing/shoes/black = 1,
-		/obj/item/weapon/storage/box/lip_stick = 1,
-		/obj/item/weapon/storage/box/barber = 1
+		/obj/item/storage/box/lip_stick = 1,
+		/obj/item/storage/box/barber = 1
 	)

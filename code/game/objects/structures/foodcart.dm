@@ -7,20 +7,20 @@
 	density = 1
 	//Food slots
 	var/list/food_slots[6]
-	//var/obj/item/weapon/reagent_containers/food/snacks/food1 = null
-	//var/obj/item/weapon/reagent_containers/food/snacks/food2 = null
-	//var/obj/item/weapon/reagent_containers/food/snacks/food3 = null
-	//var/obj/item/weapon/reagent_containers/food/snacks/food4 = null
-	//var/obj/item/weapon/reagent_containers/food/snacks/food5 = null
-	//var/obj/item/weapon/reagent_containers/food/snacks/food6 = null
+	//var/obj/item/reagent_containers/food/snacks/food1 = null
+	//var/obj/item/reagent_containers/food/snacks/food2 = null
+	//var/obj/item/reagent_containers/food/snacks/food3 = null
+	//var/obj/item/reagent_containers/food/snacks/food4 = null
+	//var/obj/item/reagent_containers/food/snacks/food5 = null
+	//var/obj/item/reagent_containers/food/snacks/food6 = null
 	//Drink slots
 	var/list/drink_slots[6]
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink1 = null
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink2 = null
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink3 = null
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink4 = null
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink5 = null
-	//var/obj/item/weapon/reagent_containers/food/drinks/drink6 = null
+	//var/obj/item/reagent_containers/food/drinks/drink1 = null
+	//var/obj/item/reagent_containers/food/drinks/drink2 = null
+	//var/obj/item/reagent_containers/food/drinks/drink3 = null
+	//var/obj/item/reagent_containers/food/drinks/drink4 = null
+	//var/obj/item/reagent_containers/food/drinks/drink5 = null
+	//var/obj/item/reagent_containers/food/drinks/drink6 = null
 
 /obj/structure/foodcart/proc/put_in_cart(obj/item/I, mob/user)
 	user.drop_item()
@@ -32,7 +32,7 @@
 /obj/structure/foodcart/attackby(obj/item/I, mob/user, params)
 	var/fail_msg = "<span class='notice'>There are no open spaces for this in [src].</span>"
 	if(!I.is_robot_module())
-		if(istype(I, /obj/item/weapon/reagent_containers/food/snacks))
+		if(istype(I, /obj/item/reagent_containers/food/snacks))
 			var/success = 0
 			for(var/s=1,s<=6,s++)
 				if(!food_slots[s])
@@ -43,7 +43,7 @@
 					break;
 			if(!success)
 				to_chat(user, fail_msg)
-		else if(istype(I, /obj/item/weapon/reagent_containers/food/drinks))
+		else if(istype(I, /obj/item/reagent_containers/food/drinks))
 			var/success = 0
 			for(var/s=1,s<=6,s++)
 				if(!drink_slots[s])
@@ -54,7 +54,7 @@
 					break;
 			if(!success)
 				to_chat(user, fail_msg)
-		else if(istype(I, /obj/item/weapon/wrench))
+		else if(istype(I, /obj/item/wrench))
 			if(!anchored && !isinspace())
 				playsound(src.loc, I.usesound, 50, 1)
 				user.visible_message( \
@@ -173,32 +173,7 @@
 	update_icon()		//Not really needed without overlays, but keeping just in case
 	updateUsrDialog()
 
-/*
-Overlays for cart_unused
-/obj/structure/foodcart/update_icon()
-	overlays = null
-	if(food1)
-		overlays += "cart_food1"
-	if(food2)
-		overlays += "cart_food2"
-	if(food3)
-		overlays += "cart_food3"
-	if(food4)
-		overlays += "cart_food4"
-	if(food5)
-		overlays += "cart_food5"
-	if(food6)
-		overlays += "cart_food6"
-	if(drink1)
-		overlays += "cart_drink1"
-	if(drink2)
-		overlays += "cart_drink2"
-	if(drink3)
-		overlays += "cart_drink3"
-	if(drink4)
-		overlays += "cart_drink4"
-	if(drink5)
-		overlays += "cart_drink5"
-	if(drink6)
-		overlays += "cart_drink6"
-*/
+/obj/structure/foodcart/deconstruct(disassembled = TRUE)
+	if(!(flags & NODECONSTRUCT))
+		new /obj/item/stack/sheet/metal(loc, 4)
+	qdel(src)

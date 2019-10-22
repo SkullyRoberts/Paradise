@@ -5,7 +5,7 @@
 	icon = 'icons/obj/aibots.dmi'
 	icon_state = "floorbot0"
 	density = 0
-	anchored = 0
+	anchored = FALSE
 	health = 25
 	maxHealth = 25
 
@@ -14,9 +14,10 @@
 	bot_filter = RADIO_FLOORBOT
 	model = "Floorbot"
 	bot_purpose = "seek out damaged or missing floor tiles, and repair or replace them as necessary"
-	bot_core = /obj/machinery/bot_core/floorbot
+	bot_core_type = /obj/machinery/bot_core/floorbot
 	window_id = "autofloor"
 	window_name = "Automatic Station Floor Repairer v1.1"
+	path_image_color = "#FFA500"
 
 	var/process_type //Determines what to do when process_scan() recieves a target. See process_scan() for details.
 	var/targetdirection
@@ -31,6 +32,7 @@
 	var/max_targets = 50
 	var/turf/target
 	var/oldloc = null
+	var/toolbox_color = ""
 
 	#define HULL_BREACH		1
 	#define BRIDGE_MODE		2
@@ -39,12 +41,16 @@
 	#define REPLACE_TILE	5
 	#define TILE_EMAG		6
 
-/mob/living/simple_animal/bot/floorbot/New()
+/mob/living/simple_animal/bot/floorbot/New(mapload, new_toolbox_color)
 	..()
+	toolbox_color = new_toolbox_color
 	update_icon()
 	var/datum/job/engineer/J = new/datum/job/engineer
 	access_card.access += J.get_access()
 	prev_access = access_card.access
+	if(toolbox_color == "s")
+		health = 50
+		maxHealth = 50
 
 /mob/living/simple_animal/bot/floorbot/bot_reset()
 	..()
@@ -52,12 +58,12 @@
 	oldloc = null
 	ignore_list = list()
 	nagged = 0
-	anchored = 0
+	anchored = FALSE
 	update_icon()
 
 /mob/living/simple_animal/bot/floorbot/set_custom_texts()
 	text_hack = "You corrupt [name]'s construction protocols."
-	text_dehack = "You detect errors in [name] and reset his programming."
+	text_dehack = "You detect errors in [name] and reset [p_their()] programming."
 	text_dehack_fail = "[name] is not responding to reset commands!"
 
 /mob/living/simple_animal/bot/floorbot/get_controls(mob/user)
@@ -97,7 +103,7 @@
 		T.use(loaded)
 		amount += loaded
 		if(loaded > 0)
-			to_chat(user, "<span class='notice'>You load [loaded] tiles into the floorbot. He now contains [amount] tiles.</span>")
+			to_chat(user, "<span class='notice'>You load [loaded] tiles into the floorbot. [p_they(TRUE)] now contains [amount] tiles.</span>")
 			nagged = 0
 			update_icon()
 		else
@@ -234,7 +240,7 @@
 				repair(target)
 			else if(emagged == 2 && istype(target,/turf/simulated/floor))
 				var/turf/simulated/floor/F = target
-				anchored = 1
+				anchored = TRUE
 				mode = BOT_REPAIRING
 				if(prob(90))
 					F.break_tile_to_plating()
@@ -243,7 +249,7 @@
 				audible_message("<span class='danger'>[src] makes an excited booping sound.</span>")
 				spawn(50)
 					amount ++
-					anchored = 0
+					anchored = FALSE
 					mode = BOT_IDLE
 					target = null
 			path = list()
@@ -271,11 +277,11 @@
 		if(HULL_BREACH) //The most common job, patching breaches in the station's hull.
 			if(is_hull_breach(scan_target)) //Ensure that the targeted space turf is actually part of the station, and not random space.
 				result = scan_target
-				anchored = 1 //Prevent the floorbot being blown off-course while trying to reach a hull breach.
+				anchored = TRUE //Prevent the floorbot being blown off-course while trying to reach a hull breach.
 		if(BRIDGE_MODE) //Only space turfs in our chosen direction are considered.
 			if(get_dir(src, scan_target) == targetdirection)
 				result = scan_target
-				anchored = 1
+				anchored = TRUE
 		if(REPLACE_TILE)
 			F = scan_target
 			if(istype(F, /turf/simulated/floor/plating)) //The floor must not already have a tile.
@@ -305,9 +311,10 @@
 		mode = BOT_IDLE
 		target = null
 		return
-	anchored = 1
-	icon_state = "floorbot-c"
+	anchored = TRUE
+	icon_state = "[toolbox_color]floorbot-c"
 	if(istype(target_turf, /turf/space/)) //If we are fixing an area not part of pure space, it is
+		icon_state = "[toolbox_color]floorbot-c"
 		visible_message("<span class='notice'>[targetdirection ? "[src] begins installing a bridge plating." : "[src] begins to repair the hole."] </span>")
 		mode = BOT_REPAIRING
 		spawn(50)
@@ -319,11 +326,12 @@
 				mode = BOT_IDLE
 				amount -= 1
 				update_icon()
-				anchored = 0
+				anchored = FALSE
 				target = null
 	else
 		var/turf/simulated/floor/F = target_turf
 		mode = BOT_REPAIRING
+		icon_state = "[toolbox_color]floorbot-c"
 		visible_message("<span class='notice'>[src] begins repairing the floor.</span>")
 		spawn(50)
 			if(mode == BOT_REPAIRING)
@@ -333,7 +341,7 @@
 				mode = BOT_IDLE
 				amount -= 1
 				update_icon()
-				anchored = 0
+				anchored = FALSE
 				target = null
 
 /mob/living/simple_animal/bot/floorbot/proc/eattile(obj/item/stack/tile/plasteel/T)
@@ -379,22 +387,19 @@
 
 /mob/living/simple_animal/bot/floorbot/update_icon()
 	if(amount > 0)
-		icon_state = "floorbot[on]"
+		icon_state = "[toolbox_color]floorbot[on]"
 	else
-		icon_state = "floorbot[on]e"
+		icon_state = "[toolbox_color]floorbot[on]e"
 
 /mob/living/simple_animal/bot/floorbot/explode()
 	on = 0
 	visible_message("<span class='userdanger'>[src] blows apart!</span>")
 	var/turf/Tsec = get_turf(src)
-
-	var/obj/item/weapon/storage/toolbox/mechanical/N = new /obj/item/weapon/storage/toolbox/mechanical(Tsec)
+	var/obj/item/storage/toolbox/mechanical/N = new /obj/item/storage/toolbox/mechanical(Tsec)
 	N.contents = list()
-
-	new /obj/item/device/assembly/prox_sensor(Tsec)
-
+	new /obj/item/assembly/prox_sensor(Tsec)
 	if(prob(50))
-		new /obj/item/robot_parts/l_arm(Tsec)
+		drop_part(robot_arm, Tsec)
 
 	while(amount)//Dumps the tiles into the appropriate sized stacks
 		if(amount >= 16)
@@ -406,9 +411,7 @@
 			T.amount = amount
 			amount = 0
 
-	var/datum/effect_system/spark_spread/s = new /datum/effect_system/spark_spread
-	s.set_up(3, 1, src)
-	s.start()
+	do_sparks(3, 1, src)
 	..()
 
 /obj/machinery/bot_core/floorbot

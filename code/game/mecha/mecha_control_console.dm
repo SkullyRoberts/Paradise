@@ -5,7 +5,7 @@
 	icon_screen = "mecha"
 	light_color = LIGHT_COLOR_FADEDPURPLE
 	req_access = list(access_robotics)
-	circuit = /obj/item/weapon/circuitboard/mecha_control
+	circuit = /obj/item/circuitboard/mecha_control
 	var/list/located = list()
 	var/screen = 0
 	var/stored_data
@@ -17,7 +17,7 @@
 	ui_interact(user)
 
 /obj/machinery/computer/mecha/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "exosuit_control.tmpl", "Exosuit Control Console", 420, 500)
 		ui.open()
@@ -63,7 +63,7 @@
 	if(href_list["return"])
 		screen = 0
 
-	nanomanager.update_uis(src)
+	SSnanoui.update_uis(src)
 	return
 
 /obj/item/mecha_parts/mecha_tracking
@@ -89,7 +89,7 @@
 		answer["cell_percentage"] = round(M.cell.percent())
 	else
 		answer["cell"] = 0
-	answer["integrity"] = M.health/initial(M.health)*100
+	answer["integrity"] = round((M.obj_integrity/M.max_integrity*100), 0.01)
 	answer["airtank"] = M.return_pressure()
 	answer["pilot"] = "[M.occupant||"None"]"
 	var/area/area = get_area(M)
@@ -109,7 +109,7 @@
 	var/cell_charge = M.get_charge()
 	var/area/A = get_area(M)
 	var/answer = {"<b>Name:</b> [M.name]
-						<b>Integrity:</b> [M.health/initial(M.health)*100]%
+						<b>Integrity:</b> [M.obj_integrity / M.max_integrity * 100]%
 						<b>Cell charge:</b> [isnull(cell_charge)?"Not found":"[M.cell.percent()]%"]
 						<b>Airtank:</b> [M.return_pressure()]kPa
 						<b>Pilot:</b> [M.occupant||"None"]
@@ -123,11 +123,6 @@
 
 /obj/item/mecha_parts/mecha_tracking/emp_act()
 	qdel(src)
-	return
-
-/obj/item/mecha_parts/mecha_tracking/ex_act()
-	qdel(src)
-	return
 
 /obj/item/mecha_parts/mecha_tracking/proc/in_mecha()
 	if(istype(loc, /obj/mecha))
@@ -152,10 +147,10 @@
 	origin_tech = "programming=3;magnets=2;engineering=2"
 	ai_beacon = TRUE
 
-/obj/item/weapon/storage/box/mechabeacons
+/obj/item/storage/box/mechabeacons
 	name = "Exosuit Tracking Beacons"
 
-/obj/item/weapon/storage/box/mechabeacons/New()
+/obj/item/storage/box/mechabeacons/New()
 	..()
 	new /obj/item/mecha_parts/mecha_tracking(src)
 	new /obj/item/mecha_parts/mecha_tracking(src)

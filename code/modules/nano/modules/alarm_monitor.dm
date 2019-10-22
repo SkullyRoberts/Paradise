@@ -5,15 +5,15 @@
 
 /datum/nano_module/alarm_monitor/all/New()
 	..()
-	alarm_handlers = list(atmosphere_alarm, burglar_alarm, camera_alarm, fire_alarm, motion_alarm, power_alarm)
+	alarm_handlers = list(SSalarms.atmosphere_alarm, SSalarms.burglar_alarm, SSalarms.camera_alarm, SSalarms.fire_alarm, SSalarms.motion_alarm, SSalarms.power_alarm)
 
 /datum/nano_module/alarm_monitor/engineering/New()
 	..()
-	alarm_handlers = list(atmosphere_alarm, fire_alarm, power_alarm)
+	alarm_handlers = list(SSalarms.atmosphere_alarm, SSalarms.fire_alarm, SSalarms.power_alarm)
 
 /datum/nano_module/alarm_monitor/security/New()
 	..()
-	alarm_handlers = list(burglar_alarm, camera_alarm, motion_alarm)
+	alarm_handlers = list(SSalarms.burglar_alarm, SSalarms.camera_alarm, SSalarms.motion_alarm)
 
 /datum/nano_module/alarm_monitor/proc/register(var/object, var/procName)
 	for(var/datum/alarm_handler/AH in alarm_handlers)
@@ -56,7 +56,7 @@
 		return 1
 
 /datum/nano_module/alarm_monitor/ui_interact(mob/user, ui_key = "main", var/datum/nanoui/ui = null, var/force_open = 1, var/datum/topic_state/state = default_state)
-	ui = nanomanager.try_update_ui(user, src, ui_key, ui, force_open)
+	ui = SSnanoui.try_update_ui(user, src, ui_key, ui, force_open)
 	if(!ui)
 		ui = new(user, src, ui_key, "alarm_monitor.tmpl", "Alarm Monitoring Console", 800, 800, state = state)
 		ui.open()

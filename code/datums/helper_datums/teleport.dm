@@ -1,5 +1,5 @@
 //wrapper
-/proc/do_teleport(ateleatom, adestination, aprecision=0, afteleport=1, aeffectin=null, aeffectout=null, asoundin=null, asoundout=null)
+/proc/do_teleport(ateleatom, adestination, aprecision=0, afteleport=1, aeffectin=null, aeffectout=null, asoundin=null, asoundout=null, bypass_area_flag=FALSE)
 	var/datum/teleport/instant/science/D = new
 	if(D.start(arglist(args)))
 		return 1
@@ -14,14 +14,15 @@
 	var/soundin //soundfile to play before teleportation
 	var/soundout //soundfile to play after teleportation
 	var/force_teleport = 1 //if false, teleport will use Move() proc (dense objects will prevent teleportation)
+	var/ignore_area_flag = FALSE
 
 
-/datum/teleport/proc/start(ateleatom, adestination, aprecision=0, afteleport=1, aeffectin=null, aeffectout=null, asoundin=null, asoundout=null)
+/datum/teleport/proc/start(ateleatom, adestination, aprecision=0, afteleport=1, aeffectin=null, aeffectout=null, asoundin=null, asoundout=null, bypass_area_flag=FALSE)
 	if(!initTeleport(arglist(args)))
 		return 0
 	return 1
 
-/datum/teleport/proc/initTeleport(ateleatom,adestination,aprecision,afteleport,aeffectin,aeffectout,asoundin,asoundout)
+/datum/teleport/proc/initTeleport(ateleatom, adestination, aprecision, afteleport, aeffectin, aeffectout, asoundin, asoundout, bypass_area_flag=FALSE)
 	if(!setTeleatom(ateleatom))
 		return 0
 	if(!setDestination(adestination))
@@ -31,6 +32,7 @@
 	setEffects(aeffectin,aeffectout)
 	setForceTeleport(afteleport)
 	setSounds(asoundin,asoundout)
+	ignore_area_flag = bypass_area_flag
 	return 1
 
 //must succeed
@@ -97,7 +99,8 @@
 
 	var/turf/destturf
 	var/turf/curturf = get_turf(teleatom)
-	var/area/destarea = get_area(destination)
+	var/area/curarea = get_area(curturf)
+
 	if(precision)
 		var/list/posturfs = list()
 		var/center = get_turf(destination)
@@ -108,6 +111,18 @@
 		destturf = safepick(posturfs)
 	else
 		destturf = get_turf(destination)
+
+	if(!is_teleport_allowed(destturf.z) && !ignore_area_flag)
+		return 0
+	// Only check the destination zlevel for is_teleport_allowed. Checking origin as well breaks ERT teleporters.
+
+	var/area/destarea = get_area(destturf)
+
+	if(!ignore_area_flag)
+		if(curarea.tele_proof)
+			return 0
+		if(destarea.tele_proof)
+			return 0
 
 	if(!destturf || !curturf)
 		return 0
@@ -124,7 +139,9 @@
 	if(isliving(teleatom))
 		var/mob/living/L = teleatom
 		if(L.buckled)
-			L.buckled.unbuckle_mob()
+			L.buckled.unbuckle_mob(L, force = TRUE)
+		if(L.has_buckled_mobs())
+			L.unbuckle_all_mobs(force = TRUE)
 
 	destarea.Entered(teleatom)
 
@@ -158,13 +175,63 @@
 
 /datum/teleport/instant/science/setPrecision(aprecision)
 	..()
-	if(istype(teleatom, /obj/item/weapon/storage/backpack/holding))
-		precision = rand(1,100)
+	if(!is_admin_level(destination.z))
+		if(istype(teleatom, /obj/item/storage/backpack/holding))
+			precision = rand(1, 100)
 
-	var/list/bagholding = teleatom.search_contents_for(/obj/item/weapon/storage/backpack/holding)
-	if(bagholding.len)
-		precision = max(rand(1,100)*bagholding.len,100)
-		if(istype(teleatom, /mob/living))
-			var/mob/living/MM = teleatom
-			to_chat(MM, "<span class='warning'>The bluespace interface on your bag of holding interferes with the teleport!</span>")
+		var/list/bagholding = teleatom.search_contents_for(/obj/item/storage/backpack/holding)
+		if(bagholding.len)
+			precision = max(rand(1, 100)*bagholding.len, 100)
+			if(istype(teleatom, /mob/living))
+				var/mob/living/MM = teleatom
+				to_chat(MM, "<span class='warning'>The bluespace interface on your bag of holding interferes with the teleport!</span>")
 	return 1
+
+// Safe location finder
+/proc/find_safe_turf(zlevel, list/zlevels, extended_safety_checks = FALSE)
+	if(!zlevels)
+		if(zlevel)
+			zlevels = list(zlevel)
+		else
+			zlevels = levels_by_trait(STATION_LEVEL)
+	var/cycles = 1000
+	for(var/cycle in 1 to cycles)
+		// DRUNK DIALLING WOOOOOOOOO
+		var/x = rand(1, world.maxx)
+		var/y = rand(1, world.maxy)
+		var/z = pick(zlevels)
+		var/random_location = locate(x,y,z)
+
+		if(!isfloorturf(random_location))
+			continue
+		var/turf/simulated/floor/F = random_location
+		if(!F.air)
+			continue
+
+		var/datum/gas_mixture/A = F.air
+
+		// Can most things breathe?
+		if(A.trace_gases.len)
+			continue
+		if(A.oxygen < 16)
+			continue
+		if(A.toxins)
+			continue
+		if(A.carbon_dioxide >= 10)
+			continue
+
+		// Aim for goldilocks temperatures and pressure
+		if((A.temperature <= 270) || (A.temperature >= 360))
+			continue
+		var/pressure = A.return_pressure()
+		if((pressure <= 20) || (pressure >= 550))
+			continue
+
+		if(extended_safety_checks)
+			if(islava(F)) //chasms aren't /floor, and so are pre-filtered
+				var/turf/simulated/floor/plating/lava/L = F
+				if(!L.is_safe())
+					continue
+
+		// DING! You have passed the gauntlet, and are "probably" safe.
+		return F

@@ -62,6 +62,8 @@ So, hopefully this is helpful if any more icons are to be added/changed/wonderin
 	icon_state = "none"
 	anchored = 0
 	density = 1
+	max_integrity = 500
+	armor = list("melee" = 30, "bullet" = 20, "laser" = 20, "energy" = 0, "bomb" = 0, "bio" = 0, "rad" = 0, "fire" = 90, "acid" = 80)
 	var/obj/machinery/particle_accelerator/control_box/master = null
 	var/construction_state = 0
 	var/reference = null
@@ -132,45 +134,28 @@ So, hopefully this is helpful if any more icons are to be added/changed/wonderin
 			desc = text("The [name] is assembled")
 			if(powered)
 				desc = desc_holder
-	..(user)
+	. = ..()
 
 /obj/structure/particle_accelerator/attackby(obj/item/W, mob/user, params)
 	if(istool(W))
 		if(process_tool_hit(W,user))
 			return
-	..()
-	return
+	return..()
 
+/obj/structure/particle_accelerator/deconstruct(disassembled = TRUE)
+	if(!(flags & NODECONSTRUCT))
+		new /obj/item/stack/sheet/metal (loc, 5)
+	qdel(src)
 
 /obj/structure/particle_accelerator/Move()
-	..()
+	. = ..()
 	if(master && master.active)
 		master.toggle_power()
 		investigate_log("was moved whilst active; it <font color='red'>powered down</font>.","singulo")
 
-
-/obj/structure/particle_accelerator/ex_act(severity)
-	switch(severity)
-		if(1.0)
-			qdel(src)
-			return
-		if(2.0)
-			if(prob(50))
-				qdel(src)
-				return
-		if(3.0)
-			if(prob(25))
-				qdel(src)
-				return
-		else
-	return
-
-
-/obj/structure/particle_accelerator/blob_act()
+/obj/machinery/particle_accelerator/control_box/blob_act(obj/structure/blob/B)
 	if(prob(50))
 		qdel(src)
-	return
-
 
 /obj/structure/particle_accelerator/update_icon()
 	switch(construction_state)
@@ -280,7 +265,7 @@ So, hopefully this is helpful if any more icons are to be added/changed/wonderin
 	icon_state = "none"
 	anchored = 0
 	density = 1
-	use_power = 0
+	use_power = NO_POWER_USE
 	idle_power_usage = 0
 	active_power_usage = 0
 	var/construction_state = 0
@@ -324,31 +309,7 @@ So, hopefully this is helpful if any more icons are to be added/changed/wonderin
 	if(istool(W))
 		if(process_tool_hit(W,user))
 			return
-	..()
-	return
-
-/obj/machinery/particle_accelerator/ex_act(severity)
-	switch(severity)
-		if(1.0)
-			qdel(src)
-			return
-		if(2.0)
-			if(prob(50))
-				qdel(src)
-				return
-		if(3.0)
-			if(prob(25))
-				qdel(src)
-				return
-		else
-	return
-
-
-/obj/machinery/particle_accelerator/blob_act()
-	if(prob(50))
-		qdel(src)
-	return
-
+	return ..()
 
 /obj/machinery/particle_accelerator/proc/update_state()
 	return 0
@@ -407,10 +368,10 @@ So, hopefully this is helpful if any more icons are to be added/changed/wonderin
 		if(construction_state < 3)//Was taken apart, update state
 			update_state()
 			if(use_power)
-				use_power = 0
+				use_power = NO_POWER_USE
 		construction_state = temp_state
 		if(construction_state >= 3)
-			use_power = 1
+			use_power = IDLE_POWER_USE
 		update_icon()
 		return 1
 	return 0

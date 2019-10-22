@@ -3,7 +3,7 @@
 	desc = "Used to upload laws to the AI."
 	icon_screen = "command"
 	icon_keyboard = "med_key"
-	circuit = /obj/item/weapon/circuitboard/aiupload
+	circuit = /obj/item/circuitboard/aiupload
 	var/mob/living/silicon/ai/current = null
 	var/opened = 0
 
@@ -26,21 +26,19 @@
 		return
 
 
-	attackby(obj/item/weapon/O as obj, mob/user as mob, params)
-		if(istype(O, /obj/item/weapon/aiModule))
+	attackby(obj/item/O as obj, mob/user as mob, params)
+		if(istype(O, /obj/item/aiModule))
+			if(!current)//no AI selected
+				to_chat(user, "<span class='danger'>No AI selected. Please chose a target before proceeding with upload.")
+				return
 			var/turf/T = get_turf(current)
 			if(!atoms_share_level(T, src))
 				to_chat(user, "<span class='danger'>Unable to establish a connection</span>: You're too far away from the target silicon!")
 				return
-			var/datum/game_mode/nations/mode = get_nations_mode()
-			if(!mode)
-				var/obj/item/weapon/aiModule/M = O
-				M.install(src)
-			else
-				if(mode.kickoff)
-					to_chat(user, "<span class='warning'>You have been locked out from modifying the AI's laws!</span>")
-		else
-			..()
+			var/obj/item/aiModule/M = O
+			M.install(src)
+			return
+		return ..()
 
 
 	attack_hand(var/mob/user as mob)
@@ -67,24 +65,22 @@
 	desc = "Used to upload laws to Cyborgs."
 	icon_screen = "command"
 	icon_keyboard = "med_key"
-	circuit = /obj/item/weapon/circuitboard/borgupload
+	circuit = /obj/item/circuitboard/borgupload
 	var/mob/living/silicon/robot/current = null
 
 
-	attackby(obj/item/weapon/aiModule/module as obj, mob/user as mob, params)
-		if(istype(module, /obj/item/weapon/aiModule))
+	attackby(obj/item/aiModule/module as obj, mob/user as mob, params)
+		if(istype(module, /obj/item/aiModule))
+			if(!current)//no borg selected
+				to_chat(user, "<span class='danger'>No borg selected. Please chose a target before proceeding with upload.")
+				return
 			var/turf/T = get_turf(current)
 			if(!atoms_share_level(T, src))
 				to_chat(user, "<span class='danger'>Unable to establish a connection</span>: You're too far away from the target silicon!")
 				return
-			var/datum/game_mode/nations/mode = get_nations_mode()
-			if(!mode)
-				module.install(src)
-			else
-				if(mode.kickoff)
-					to_chat(user, "<span class='warning'>You have been locked out from modifying the borg's laws!</span>")
-		else
-			return ..()
+			module.install(src)
+			return
+		return ..()
 
 
 	attack_hand(var/mob/user as mob)

@@ -18,7 +18,7 @@
 		light(show_message = 0)
 
 /obj/item/candle/Destroy()
-	processing_objects.Remove(src)
+	STOP_PROCESSING(SSobj, src)
 	return ..()
 
 /obj/item/candle/update_icon()
@@ -31,29 +31,34 @@
 	icon_state = "candle[i][lit ? "_lit" : ""]"
 
 
-/obj/item/candle/attackby(obj/item/weapon/W, mob/user, params)
-	..()
-	if(istype(W, /obj/item/weapon/weldingtool))
-		var/obj/item/weapon/weldingtool/WT = W
+/obj/item/candle/attackby(obj/item/W, mob/user, params)
+	if(istype(W, /obj/item/weldingtool))
+		var/obj/item/weldingtool/WT = W
 		if(WT.isOn()) //Badasses dont get blinded by lighting their candle with a welding tool
 			light("<span class='notice'>[user] casually lights [src] with [WT], what a badass.")
-	else if(istype(W, /obj/item/weapon/lighter))
-		var/obj/item/weapon/lighter/L = W
+		return
+	if(istype(W, /obj/item/lighter))
+		var/obj/item/lighter/L = W
 		if(L.lit)
 			light("<span class='notice'>After some fiddling, [user] manages to light [src] with [L].</span>")
-	else if(istype(W, /obj/item/weapon/match))
-		var/obj/item/weapon/match/M = W
+		return
+	if(istype(W, /obj/item/match))
+		var/obj/item/match/M = W
 		if(M.lit)
 			light("<span class='notice'>[user] lights [src] with [M]</span>")
-	else if(istype(W, /obj/item/candle))
+		return
+	if(istype(W, /obj/item/candle))
 		var/obj/item/candle/C = W
 		if(C.lit)
 			light("<span class='notice'>[user] tilts [C] and lights [src] with it.</span>")
+		return
+	return ..()
 
 
-/obj/item/candle/fire_act()
+/obj/item/candle/fire_act(datum/gas_mixture/air, exposed_temperature, exposed_volume, global_overlay = TRUE)
 	if(!lit)
 		light() //honk
+	return ..()
 
 /obj/item/candle/proc/light(show_message)
 	if(!lit)
@@ -61,7 +66,7 @@
 		if(show_message)
 			usr.visible_message(show_message)
 		set_light(CANDLE_LUM)
-		processing_objects.Add(src)
+		START_PROCESSING(SSobj, src)
 		update_icon()
 
 

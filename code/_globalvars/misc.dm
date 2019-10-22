@@ -1,14 +1,12 @@
 var/global/obj/effect/overlay/plmaster = null
 var/global/obj/effect/overlay/slmaster = null
-var/global/obj/effect/overlay/icemaster = null
 
-// nanomanager, the manager for Nano UIs
-var/datum/nanomanager/nanomanager = new()
-// Event Manager, the manager for events.
-var/datum/event_manager/event_manager = new()
+GLOBAL_VAR_INIT(CELLRATE, 0.002)  // conversion ratio between a watt-tick and kilojoule
+GLOBAL_VAR_INIT(CHARGELEVEL, 0.001) // Cap for how fast cells charge, as a percentage-per-tick (.001 means cellcharge is capped to 1% per second)
+
 // Announcer intercom, because too much stuff creates an intercom for one message then hard del()s it.
-var/global/obj/item/device/radio/intercom/global_announcer = create_global_announcer()
-var/global/obj/item/device/radio/intercom/command/command_announcer = create_command_announcer()
+var/global/obj/item/radio/intercom/global_announcer = create_global_announcer()
+var/global/obj/item/radio/intercom/command/command_announcer = create_command_announcer()
 // Load order issues means this can't be new'd until other code runs
 // This is probably not the way I should be doing this, but I don't know how to do it right!
 proc/create_global_announcer()
@@ -74,8 +72,22 @@ var/score_dmgestkey = null
 
 var/TAB = "&nbsp;&nbsp;&nbsp;&nbsp;"
 
-var/timezoneOffset = 0 // The difference betwen midnight (of the host computer) and 0 world.ticks.
+GLOBAL_VAR_INIT(timezoneOffset, 0) // The difference betwen midnight (of the host computer) and 0 world.ticks.
 
 // For FTP requests. (i.e. downloading runtime logs.)
 // However it'd be ok to use for accessing attack logs and such too, which are even laggier.
 var/fileaccess_timer = 0
+
+GLOBAL_VAR_INIT(gametime_offset, 432000) // 12:00 in seconds
+
+//printers shutdown if too much shit printed
+var/copier_items_printed = 0
+var/copier_max_items = 300
+var/copier_items_printed_logged = FALSE
+
+
+GLOBAL_VAR(map_name) // Self explanatory
+
+var/global/datum/datacore/data_core = null // Station datacore, manifest, etc
+
+GLOBAL_VAR_INIT(panic_bunker_enabled, 0) // Is the panic bunker enabled

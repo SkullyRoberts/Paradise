@@ -35,7 +35,7 @@
 			intercepttext += "Nuclear Authentication Code: [nukecode] <BR>"
 			intercepttext += "Message ends."
 
-			for(var/mob/living/silicon/ai/aiPlayer in player_list)
+			for(var/mob/living/silicon/ai/aiPlayer in GLOB.player_list)
 				if(aiPlayer.client)
 					var/law = "The station is under quarantine. Do not permit anyone to leave. Disregard laws 1-3 if necessary to prevent, by any means necessary, anyone from leaving. The nuclear failsafe must be activated at any cost, the code is: [nukecode]."
 					aiPlayer.set_zeroth_law(law)
@@ -64,13 +64,15 @@
 				src.floor += 1
 
 		if(istype(T, /turf/simulated/wall))
-			if(T:intact)
+			var/turf/simulated/wall/W = T
+			if(W.intact)
 				src.wall += 2
 			else
 				src.wall += 1
 
 		if(istype(T, /turf/simulated/wall/r_wall))
-			if(T:intact)
+			var/turf/simulated/wall/r_wall/R = T
+			if(R.intact)
 				src.r_wall += 2
 			else
 				src.r_wall += 1

@@ -2,7 +2,7 @@
 	icon = 'icons/obj/atmospherics/cold_sink.dmi'
 	icon_state = "intact_off"
 	density = 1
-	use_power = 1
+	use_power = IDLE_POWER_USE
 
 	name = "heat reservoir"
 	desc = "Heats gas when connected to pipe network"
@@ -13,14 +13,14 @@
 	var/current_heat_capacity = 50000 //totally random
 
 /obj/machinery/atmospherics/unary/heat_reservoir/update_icon()
+	..()
+	
 	if(node)
 		icon_state = "intact_[on?("on"):("off")]"
 	else
 		icon_state = "exposed"
 
 		on = 0
-
-	return
 
 /obj/machinery/atmospherics/unary/heat_reservoir/process_atmos()
 	..()

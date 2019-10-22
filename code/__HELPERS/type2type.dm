@@ -157,6 +157,17 @@
 	if(degree < 315)	return WEST
 	return NORTH|WEST
 
+/proc/angle2dir_cardinal(angle)
+	switch(round(angle, 0.1))
+		if(315.5 to 360, 0 to 45.5)
+			return NORTH
+		if(45.6 to 135.5)
+			return EAST
+		if(135.6 to 225.5)
+			return SOUTH
+		if(225.6 to 315.5)
+			return WEST
+			
 //returns the north-zero clockwise angle in degrees, given a direction
 
 /proc/dir2angle(var/D)
@@ -365,3 +376,18 @@
 				for(var/A in value)
 					if(var_source.vars.Find(A))
 						. += A
+
+/proc/type2parent(child)
+	var/string_type = "[child]"
+	var/last_slash = findlasttext(string_type, "/")
+	if(last_slash == 1)
+		switch(child)
+			if(/datum)
+				return null
+			if(/obj || /mob)
+				return /atom/movable
+			if(/area || /turf)
+				return /atom
+			else
+				return /datum
+	return text2path(copytext(string_type, 1, last_slash))

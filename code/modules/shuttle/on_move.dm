@@ -1,12 +1,12 @@
 // Shuttle on-movement //
-/atom/movable/proc/onShuttleMove(turf/T1, rotation)
-    if(rotation)
-        shuttleRotate(rotation)
-    forceMove(T1)
-    return 1
-
-/atom/movable/lighting_overlay/onShuttleMove()
-    return 0
+/atom/movable/proc/onShuttleMove(turf/oldT, turf/T1, rotation)
+	var/turf/newT = get_turf(src)
+	if(newT.z != oldT.z)
+		onTransitZ(oldT.z, newT.z)
+	if(rotation)
+		shuttleRotate(rotation)
+	forceMove(T1)
+	return 1
 
 /obj/effect/landmark/shuttle_import/onShuttleMove()
     // Used for marking where to preview/load shuttles
@@ -17,30 +17,34 @@
     return 0
 
 /obj/machinery/door/airlock/onShuttleMove()
-    . = ..()
-    if(!.)
-        return
-    addtimer(src, "close", 0, TRUE, 0, 1)
-    // Close any nearby airlocks as well
-    for(var/obj/machinery/door/airlock/D in orange(1, src))
-        addtimer(D, "close", 0, TRUE, 0, 1)
+	. = ..()
+	if(!.)
+		return
+	INVOKE_ASYNC(src, .proc/close, 0, 1)
+	// Close any nearby airlocks as well
+	for(var/obj/machinery/door/airlock/D in orange(1, src))
+		INVOKE_ASYNC(D, .proc/close, 0, 1)
 
 /obj/machinery/door/airlock/onShuttleMove()
-    . = ..()
-    if(id_tag == "s_docking_airlock")
-        addtimer(src, "lock", 0, TRUE)
+	. = ..()
+	if(id_tag == "s_docking_airlock")
+		INVOKE_ASYNC(src, .proc/lock)
 
-/mob/onShuttleMove()
+/mob/onShuttleMove(turf/oldT, turf/T1, rotation)
     if(!move_on_shuttle)
         return 0
     . = ..()
     if(!.)
         return
-    if(client)
-        if(buckled)
-            shake_camera(src, 2, 1) // turn it down a bit come on
-        else
-            shake_camera(src, 7, 1)
+    if(!client)
+        return
+
+    if(buckled)
+        shake_camera(src, 2, 1) // turn it down a bit come on
+    else
+        shake_camera(src, 7, 1)
+
+    update_parallax_contents()
 
 /mob/living/carbon/onShuttleMove()
     . = ..()
@@ -52,24 +56,20 @@
 // After docking //
 /atom/proc/postDock(obj/docking_port/S1)
 	if(smooth)
-		smooth_icon(src)
+		queue_smooth(src)
+
+/mob/postDock()
+	update_parallax_contents()
 
 /obj/machinery/door/airlock/postDock(obj/docking_port/stationary/S1)
 	. = ..()
 	if(!S1.lock_shuttle_doors && id_tag == "s_docking_airlock")
-		addtimer(src, "unlock", 0, TRUE)
+		INVOKE_ASYNC(src, .proc/unlock)
 
-// Shuttle Rotation //
-/atom/proc/shuttleRotate(rotation)
-	//rotate our direction
-	dir = angle2dir(rotation+dir2angle(dir))
-
-	//rotate the pixel offsets too.
-	if(pixel_x || pixel_y)
-		if(rotation < 0)
-			rotation += 360
-		for(var/turntimes=rotation/90;turntimes>0;turntimes--)
-			var/oldPX = pixel_x
-			var/oldPY = pixel_y
-			pixel_x = oldPY
-			pixel_y = (oldPX*(-1))
+/obj/structure/ladder/onShuttleMove()
+	if(resistance_flags & INDESTRUCTIBLE)
+		// simply don't be moved
+		return FALSE
+	disconnect()
+	LateInitialize()
+	return ..()

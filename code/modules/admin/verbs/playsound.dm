@@ -10,7 +10,7 @@ var/list/sounds_cache = list()
 
 	log_admin("[key_name(src)] stopped admin sounds.")
 	message_admins("[key_name_admin(src)] stopped admin sounds.", 1)
-	for(var/mob/M in player_list)
+	for(var/mob/M in GLOB.player_list)
 		M << awful_sound
 
 /client/proc/play_sound(S as sound)
@@ -28,9 +28,12 @@ var/list/sounds_cache = list()
 
 	log_admin("[key_name(src)] played sound [S]")
 	message_admins("[key_name_admin(src)] played sound [S]", 1)
-	for(var/mob/M in player_list)
+
+	for(var/mob/M in GLOB.player_list)
 		if(M.client.prefs.sound & SOUND_MIDI)
-			M << uploaded_sound
+			if(isnewplayer(M) && (M.client.prefs.sound & SOUND_LOBBY))
+				M.stop_sound_channel(CHANNEL_LOBBYMUSIC)
+			SEND_SOUND(M, uploaded_sound)
 
 	feedback_add_details("admin_verb","PGS") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
@@ -92,8 +95,8 @@ var/list/sounds_cache = list()
 	if(C == "Yep")
 		ignore_power = 1
 
-	for(var/O in global_intercoms)
-		var/obj/item/device/radio/intercom/I = O
+	for(var/O in GLOB.global_intercoms)
+		var/obj/item/radio/intercom/I = O
 		if(!is_station_level(I.z) && !ignore_z)
 			continue
 		if(!I.on && !ignore_power)

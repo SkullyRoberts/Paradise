@@ -38,53 +38,13 @@ Bonus
 			if(3, 4)
 				to_chat(M, "<span class='warning'><b>Your eyes burn!</b></span>")
 				M.EyeBlurry(20)
-				eyes.take_damage(1)
+				eyes.receive_damage(1)
 			else
 				to_chat(M, "<span class='userdanger'>Your eyes burn horrificly!</span>")
 				M.EyeBlurry(30)
-				eyes.take_damage(5)
+				eyes.receive_damage(5)
 				if(eyes.damage >= 10)
 					M.BecomeNearsighted()
 					if(prob(eyes.damage - 10 + 1))
 						if(M.BecomeBlind())
 							to_chat(M, "<span class='userdanger'>You go blind!</span>")
-
-
-/*
-//////////////////////////////////////
-
-Ocular Restoration
-
-	Noticable.
-	Lowers resistance significantly.
-	Decreases stage speed moderately..
-	Decreases transmittablity tremendously.
-	High level.
-
-Bonus
-	Restores eyesight.
-
-//////////////////////////////////////
-*/
-
-/datum/symptom/visionaid
-
-	name = "Ocular Restoration"
-	stealth = -1
-	resistance = -3
-	stage_speed = -2
-	transmittable = -4
-	level = 4
-
-/datum/symptom/visionaid/Activate(datum/disease/advance/A)
-	..()
-	if(prob(SYMPTOM_ACTIVATION_PROB * 5))
-		var/mob/living/M = A.affected_mob
-		switch(A.stage)
-			if(4, 5)
-				if(M.reagents.get_reagent_amount("oculine") < 20)
-					M.reagents.add_reagent("oculine", 20)
-			else
-				if(prob(SYMPTOM_ACTIVATION_PROB * 5))
-					to_chat(M, "<span class='notice'>[pick("Your eyes feel great.", "You are now blinking manually.", "You don't feel the need to blink.")]</span>")
-	return

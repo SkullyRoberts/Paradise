@@ -14,27 +14,22 @@
 		loc = locate(1,1,1)
 	lastarea = loc
 
+	client.screen = list() // Remove HUD items just in case.
+	client.images = list()
+	if(!hud_used)
+		create_mob_hud()
+	if(hud_used)
+		hud_used.show_hud(hud_used.hud_version)
+
 	sight |= SEE_TURFS
-	player_list |= src
-
-/*
-	var/list/watch_locations = list()
-	for(var/obj/effect/landmark/landmark in landmarks_list)
-		if(landmark.tag == "landmark*new_player")
-			watch_locations += landmark.loc
-
-	if(watch_locations.len>0)
-		loc = pick(watch_locations)
-*/
-
-	callHook("mob_login", list("client" = client, "mob" = src))
+	GLOB.player_list |= src
 
 	new_player_panel()
-	
+
 	spawn(30)
 		// Annoy the player with polls.
 		establish_db_connection()
-		if(dbcon.IsConnected() && client.can_vote())
+		if(dbcon.IsConnected() && client && client.can_vote())
 			var/isadmin = 0
 			if(client && client.holder)
 				isadmin = 1
@@ -46,8 +41,8 @@
 				break
 			if(newpoll)
 				client.handle_player_polling()
-	
-	if(ckey in deadmins)
+
+	if(ckey in GLOB.deadmins)
 		verbs += /client/proc/readmin
 	spawn(40)
 		if(client)
@@ -57,7 +52,7 @@
 		if(src.client.holder)	return //admins are immune to overflow rerouting
 		if(config.overflow_whitelist.Find(lowertext(src.ckey)))	return //Whitelisted people are immune to overflow rerouting.
 		var/tally = 0
-		for(var/client/C in clients)
+		for(var/client/C in GLOB.clients)
 			tally++
 		if(tally > config.player_overflow_cap)
 			src << link(config.overflow_server_url)

@@ -4,7 +4,11 @@ var/global/mentor_ooc_colour = "#0099cc"
 var/global/moderator_ooc_colour = "#184880"
 var/global/admin_ooc_colour = "#b82e00"
 
-/client/verb/ooc(msg as text)
+//Checks if the client already has a text input open
+/client/proc/checkTyping()
+	return (prefs.toggles & TYPING_ONCE && typing)
+
+/client/verb/ooc(msg = "" as text)
 	set name = "OOC"
 	set category = "OOC"
 
@@ -13,6 +17,20 @@ var/global/admin_ooc_colour = "#b82e00"
 	if(IsGuestKey(key))
 		to_chat(src, "<span class='danger'>Guests may not use OOC.</span>")
 		return
+
+	if(!check_rights(R_ADMIN|R_MOD, 0))
+		if(!config.ooc_allowed)
+			to_chat(src, "<span class='danger'>OOC is globally muted.</span>")
+			return
+		if(!config.dooc_allowed && (mob.stat == DEAD))
+			to_chat(usr, "<span class='danger'>OOC for dead mobs has been turned off.</span>")
+			return
+		if(prefs.muted & MUTE_OOC)
+			to_chat(src, "<span class='danger'>You cannot use OOC (muted).</span>")
+			return
+
+	if(!msg)
+		msg = typing_input(src.mob, "", "ooc \"text\"")
 
 	msg = trim(sanitize(copytext(msg, 1, MAX_MESSAGE_LEN)))
 	if(!msg)
@@ -26,12 +44,6 @@ var/global/admin_ooc_colour = "#b82e00"
 		if(!config.ooc_allowed)
 			to_chat(src, "<span class='danger'>OOC is globally muted.</span>")
 			return
-		if(!config.dooc_allowed && (mob.stat == DEAD))
-			to_chat(usr, "<span class='danger'>OOC for dead mobs has been turned off.</span>")
-			return
-		if(prefs.muted & MUTE_OOC)
-			to_chat(src, "<span class='danger'>You cannot use OOC (muted).</span>")
-			return
 		if(handle_spam_prevention(msg, MUTE_OOC, OOC_COOLDOWN))
 			return
 		if(findtext(msg, "byond://"))
@@ -40,7 +52,7 @@ var/global/admin_ooc_colour = "#b82e00"
 			message_admins("[key_name_admin(src)] has attempted to advertise in OOC: [msg]")
 			return
 
-	log_ooc("[mob.name]/[key] : [msg]")
+	log_ooc(msg, src)
 
 	var/display_colour = normal_ooc_colour
 	if(holder && !holder.fakekey)
@@ -58,44 +70,31 @@ var/global/admin_ooc_colour = "#b82e00"
 			if((prefs.toggles & MEMBER_PUBLIC))
 				display_colour = member_ooc_colour
 
-	for(var/client/C in clients)
+	for(var/client/C in GLOB.clients)
 		if(C.prefs.toggles & CHAT_OOC)
-			var/display_name = src.key
+			var/display_name = key
 
 			if(prefs.unlock_content)
 				if(prefs.toggles & MEMBER_PUBLIC)
 					var/icon/byond = icon('icons/member_content.dmi', "blag")
 					display_name = "[bicon(byond)][display_name]"
 
-			if(donator_level >= DONATOR_LEVEL_ONE)
+			if(donator_level > 0)
 				if((prefs.toggles & DONATOR_PUBLIC))
 					var/icon/donator = icon('icons/ooc_tag_16x.dmi', "donator")
 					display_name = "[bicon(donator)][display_name]"
 
 			if(holder)
 				if(holder.fakekey)
-					if(C.holder)
-						display_name = "[holder.fakekey]/([src.key])"
+					if(C.holder && C.holder.rights & R_ADMIN)
+						display_name = "[holder.fakekey]/([key])"
 					else
 						display_name = holder.fakekey
 
 			if(!config.disable_ooc_emoji)
 				msg = "<span class='emoji_enabled'>[msg]</span>"
 
-			msg = apply_formatting(msg)
-
 			to_chat(C, "<font color='[display_colour]'><span class='ooc'><span class='prefix'>OOC:</span> <EM>[display_name]:</EM> <span class='message'>[msg]</span></span></font>")
-
-/proc/apply_formatting(message)
-	var/static/regex/italics = new("(?<!\\\\)\\*(.*?)(?<!\\\\)\\*", "g")
-	var/static/regex/strikethrough = new("(?<!\\\\)~(?<!\\\\)~(.*?)(?<!\\\\)~(?<!\\\\)~", "g")
-	var/static/regex/escape = new("(?<!\\\\)\\\\(\[~\\*\\\\\])", "g")
-
-	message = italics.Replace(message, "<i>$1</i>")
-	message = strikethrough.Replace(message, "<s>$1</s>")
-	message = escape.Replace(message, "$1")//jesus christ, regex
-
-	return message
 
 /proc/toggle_ooc()
 	config.ooc_allowed = ( !config.ooc_allowed )
@@ -163,7 +162,7 @@ var/global/admin_ooc_colour = "#b82e00"
 
 	feedback_add_details("admin_verb","ROC") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!
 
-/client/verb/looc(msg as text)
+/client/verb/looc(msg = "" as text)
 	set name = "LOOC"
 	set desc = "Local OOC, seen only by those in view."
 	set category = "OOC"
@@ -172,14 +171,6 @@ var/global/admin_ooc_colour = "#b82e00"
 		return
 	if(IsGuestKey(key))
 		to_chat(src, "<span class='danger'>Guests may not use OOC.</span>")
-		return
-
-	msg = trim(sanitize(copytext(msg, 1, MAX_MESSAGE_LEN)))
-	if(!msg)
-		return
-
-	if(!(prefs.toggles & CHAT_LOOC))
-		to_chat(src, "<span class='danger'>You have LOOC muted.</span>")
 		return
 
 	if(!check_rights(R_ADMIN|R_MOD,0))
@@ -192,6 +183,19 @@ var/global/admin_ooc_colour = "#b82e00"
 		if(prefs.muted & MUTE_OOC)
 			to_chat(src, "<span class='danger'>You cannot use LOOC (muted).</span>")
 			return
+
+	if(!msg)
+		msg = typing_input(src.mob, "Local OOC, seen only by those in view.", "looc \"text\"")
+
+	msg = trim(sanitize(copytext(msg, 1, MAX_MESSAGE_LEN)))
+	if(!msg)
+		return
+
+	if(!(prefs.toggles & CHAT_LOOC))
+		to_chat(src, "<span class='danger'>You have LOOC muted.</span>")
+		return
+
+	if(!check_rights(R_ADMIN|R_MOD,0))
 		if(handle_spam_prevention(msg, MUTE_OOC, OOC_COOLDOWN))
 			return
 		if(findtext(msg, "byond://"))
@@ -200,7 +204,7 @@ var/global/admin_ooc_colour = "#b82e00"
 			message_admins("[key_name_admin(src)] has attempted to advertise in LOOC: [msg]")
 			return
 
-	log_ooc("(LOCAL) [mob.name]/[key] : [msg]")
+	log_looc(msg, src)
 
 	var/mob/source = mob.get_looc_source()
 	var/list/heard = get_mobs_in_view(7, source)
@@ -211,13 +215,13 @@ var/global/admin_ooc_colour = "#b82e00"
 	if(mob.stat != DEAD)
 		display_name = mob.name
 
-	for(var/client/target in clients)
+	for(var/client/target in GLOB.clients)
 		if(target.prefs.toggles & CHAT_LOOC)
 			var/prefix = ""
 			var/admin_stuff = ""
 			var/send = 0
 
-			if(target in admins)
+			if(target in GLOB.admins)
 				if(check_rights(R_ADMIN|R_MOD,0,target.mob))
 					admin_stuff += "/([key])"
 					if(target != src)
@@ -234,7 +238,7 @@ var/global/admin_ooc_colour = "#b82e00"
 					send = 1
 					prefix = " (Eye)"
 
-			if(!send && (target in admins))
+			if(!send && (target in GLOB.admins))
 				if(check_rights(R_ADMIN|R_MOD,0,target.mob))
 					send = 1
 					prefix = "(R)"

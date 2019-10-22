@@ -4,7 +4,7 @@
 	icon_state = "teg"
 	anchored = 0
 	density = 1
-	use_power = 0
+	use_power = NO_POWER_USE
 
 	var/obj/machinery/atmospherics/binary/circulator/cold_circ
 	var/obj/machinery/atmospherics/binary/circulator/hot_circ
@@ -35,7 +35,7 @@
 	if(powernet)
 		disconnect_from_network()
 
-/obj/machinery/power/generator/initialize()
+/obj/machinery/power/generator/Initialize()
 	..()
 	connect()
 
@@ -158,8 +158,8 @@
 		return
 	interact(user)
 
-/obj/machinery/power/generator/attackby(obj/item/weapon/W as obj, mob/user as mob, params)
-	if(istype(W, /obj/item/weapon/wrench))
+/obj/machinery/power/generator/attackby(obj/item/W as obj, mob/user as mob, params)
+	if(istype(W, /obj/item/wrench))
 		anchored = !anchored
 		if(!anchored)
 			disconnect()
@@ -185,7 +185,7 @@
 		to_chat(user, "<span class='notice'>You reverse the generator's circulator settings. The cold circulator is now on the [dir2text(cold_dir)] side, and the heat circulator is now on the [dir2text(hot_dir)] side.</span>")
 		update_desc()
 	else
-		..()
+		return ..()
 
 /obj/machinery/power/generator/proc/get_menu(include_link = 1)
 	var/t = ""

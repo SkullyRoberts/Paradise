@@ -11,8 +11,8 @@ var/global/datum/repository/powermonitor/powermonitor_repository = new()
 	if(!refresh)
 		return cache_entry.data
 	
-	for(var/obj/machinery/computer/monitor/pMon in power_monitors)
-		if( !(pMon.stat & (NOPOWER|BROKEN)) )
+	for(var/obj/machinery/computer/monitor/pMon in GLOB.power_monitors)
+		if( !(pMon.stat & (NOPOWER|BROKEN)) && !pMon.is_secret_monitor  )
 			pMonData[++pMonData.len] = list ("Name" = pMon.name, "ref" = "\ref[pMon]")
 
 	cache_entry.timestamp = world.time //+ 30 SECONDS
