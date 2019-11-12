@@ -1830,6 +1830,7 @@
 #include "code\modules\mob\living\carbon\human\species\plasmaman.dm"
 #include "code\modules\mob\living\carbon\human\species\shadow.dm"
 #include "code\modules\mob\living\carbon\human\species\shadowling.dm"
+#include "code\modules\mob\living\carbon\human\species\simian.dm"
 #include "code\modules\mob\living\carbon\human\species\skeleton.dm"
 #include "code\modules\mob\living\carbon\human\species\skrell.dm"
 #include "code\modules\mob\living\carbon\human\species\slime.dm"
