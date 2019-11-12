@@ -60,6 +60,15 @@
 		H.dna.SetSEState(MONKEYBLOCK, TRUE)
 		genemutcheck(H, MONKEYBLOCK, null, MUTCHK_FORCED)
 
+/datum/species/monkey/simian
+	name = "Protosimian"
+	name_plural = "Protosimians"
+
+	greater_form = /datum/species/simian
+
+	flesh_color = "261a0d"
+
+
 /datum/species/monkey/tajaran
 	name = "Farwa"
 	name_plural = "Farwa"
